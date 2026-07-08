@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import hatch
+from src.utils.ai_collab import build_llm_payload
 from src.utils.config_loader import Settings
 
 
@@ -42,6 +43,16 @@ def test_settings_loader_reads_repository_configuration():
         "trailing-whitespace",
     ]
     assert Settings.get("ci.pipeline_file", ".github/workflows/pipeline.yml") == ".github/workflows/ci.yml"
+
+
+def test_build_llm_payload_respects_token_efficient_rules():
+    payload = build_llm_payload()
+
+    assert payload["system_prompt"]
+    assert payload["user_prompt"]
+    assert payload["files"]
+    assert all("tests/" not in entry["path"] for entry in payload["files"])
+    assert all("docs/" not in entry["path"] for entry in payload["files"])
 
 
 def test_web_and_lib_templates_include_pro_boilerplate(tmp_path, monkeypatch):

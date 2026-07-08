@@ -142,7 +142,22 @@
     "token_efficiency_mode": "strict",
     "directory_scanning_protection": {
       "prevent_home_scan": true,
-      "enforce_workspace_runspace": true
+      "enforce_workspace_runspace": true,
+      "exclude_globs": [
+        "tests/**",
+        "*.lock",
+        ".git/**",
+        "__pycache__/**",
+        "docs/**",
+        "settings.local.json",
+        ".env"
+      ],
+      "max_bytes": 400000
+    },
+    "templates": {
+      "system": "You are Carter, a friendly duck-powered assistant helping developers scaffold Python projects.",
+      "task": "Using the provided repository files, generate the missing scaffold files according to the Pro spec. Return only file contents, no explanations.",
+      "summary": "Summarise the diff between the current repository and the desired Pro scaffold in ≤ 150 tokens."
     },
     "system_instructions_path": "docs/ai_instructions.txt"
   },
