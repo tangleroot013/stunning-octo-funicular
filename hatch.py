@@ -70,8 +70,9 @@ def test_cli_help():
 \"\"\"FastAPI application bootstrap\"\"\"
 from fastapi import FastAPI
 from src.api import router as api_router
+from src.core.config import settings
 
-app = FastAPI(title=\"{project_name}\")
+app = FastAPI(title=settings.APP_NAME)
 
 app.include_router(api_router)
 """,
@@ -82,6 +83,15 @@ router = APIRouter()
 @router.get('/health')
 def health_check():
     return {'status': 'ok'}
+""",
+            "src/core/config.py": """from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    APP_NAME: str = 'WaddlerAPI'
+
+
+settings = Settings()
 """,
             "tests/test_main.py": """import json
 from fastapi.testclient import TestClient
@@ -99,6 +109,7 @@ def test_health():
             "fastapi>=0.100.0",
             "uvicorn[standard]>=0.22.0",
             "pydantic>=2.0.0",
+            "pydantic-settings>=2.0.0",
             "black>=23.0.0",
             "ruff>=0.1.0",
             "isort>=5.12.0",
@@ -112,15 +123,23 @@ def test_health():
             "src/{package_name}/__init__.py": """\"\"\"{project_name} package – version {version}\"\"\"
 __all__ = ['core']
 """,
-            "src/{package_name}/core.py": """def placeholder():
-    \"\"\"Replace with real logic\"\"\"
+            "src/{package_name}/core.py": """def validate_swim_distance(distance: float):
+    \"\"\"Validate that a duck can safely swim a distance.\"\"\"
+    if distance < 0:
+        raise ValueError('Ducks cannot swim backwards!')
     return True
 """,
             "tests/test_core.py": """import pytest
-from src.{package_name}.core import placeholder
+from src.{package_name}.core import validate_swim_distance
 
-def test_placeholder():
-    assert placeholder() is True
+
+def test_validate_swim_distance():
+    assert validate_swim_distance(3.5) is True
+
+
+def test_validate_swim_distance_rejects_negative_values():
+    with pytest.raises(ValueError):
+        validate_swim_distance(-1)
 """
         },
         "extra_deps": [
@@ -364,7 +383,7 @@ pip install -r requirements.txt
     reqs = tmpl.get("extra_deps", [])
     write_file(project_dir / "requirements.txt", "\n".join(reqs) + "\n")
 
-    write_file(project_dir / ".github/workflows/ci.yml", WORKFLOW_YAML)
+    write_file(project_dir / ".github/workflows/pipeline.yml", WORKFLOW_YAML)
 
     # ------------------------------------------------------------------
     # 3️⃣ Template-specific files
