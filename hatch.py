@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-God Mode Scaffolder (hatch.py) – v0.2.1 “Waddler OS”
+God Mode Scaffolder (hatch.py) – v0.2.2 “Waddler OS Pro”
 
 Creates production-ready Python projects with:
   • Cross-platform pure-Python implementation
   • Automatic .claudeignore for token efficiency
-  • Global/local Git pre-commit hooks (secret detection, syntax check, whitespace)
-  • CI/CD GitHub-Actions skeletons
+  • Global/local Git pre-commit hooks (secret detection, syntax checks, Ruff, Black, isort, whitespace)
+  • Expanded multi-stage CI/CD skeletons
   • Template-specific boilerplate (CLI, FastAPI, Library)
 
 Author: Carter the Duck Developer 🦆
@@ -52,7 +52,12 @@ def test_cli_help():
     assert 'CLI entry point' in result.stdout
 """
         },
-        "extra_deps": []
+        "extra_deps": [
+            "black>=23.0.0",
+            "ruff>=0.1.0",
+            "isort>=5.12.0",
+            "pytest-cov>=4.1.0"
+        ]
     },
 
     "web": {
@@ -92,7 +97,12 @@ def test_health():
         },
         "extra_deps": [
             "fastapi>=0.100.0",
-            "uvicorn[standard]>=0.22.0"
+            "uvicorn[standard]>=0.22.0",
+            "pydantic>=2.0.0",
+            "black>=23.0.0",
+            "ruff>=0.1.0",
+            "isort>=5.12.0",
+            "pytest-cov>=4.1.0"
         ]
     },
 
@@ -115,7 +125,11 @@ def test_placeholder():
         },
         "extra_deps": [
             "setuptools>=68.0.0",
-            "wheel>=0.40.0"
+            "wheel>=0.40.0",
+            "black>=23.0.0",
+            "ruff>=0.1.0",
+            "isort>=5.12.0",
+            "pytest-cov>=4.1.0"
         ]
     },
 
@@ -163,9 +177,11 @@ build/
 
 PRE_COMMIT_HOOK = """#!/usr/bin/env bash
 # -------------------------------------------------
-# Pre-commit hook – secret detection, syntax check,
-# trailing whitespace.  Exit code 1 blocks the commit.
+# Pre-commit hook – secret detection, syntax checks,
+# Ruff/Black/isort validation, and whitespace guard.
 # -------------------------------------------------
+
+set -e
 
 # 1️⃣ Secret detection (CRITICAL)
 if git diff --cached --name-only | grep -E '\\.py$|\\.env$|\\.yml$|\\.yaml$' | xargs grep -E -n '(ANTHROPIC_API_KEY|github_token|password|secret|DATABASE_URL)'; then
@@ -174,12 +190,19 @@ if git diff --cached --name-only | grep -E '\\.py$|\\.env$|\\.yml$|\\.yaml$' | x
 fi
 
 # 2️⃣ Python syntax validation (HIGH)
-if git diff --cached --name-only | grep '\\.py$' | xargs -r python3 -m py_compile; then
-  echo "Syntax errors detected!"
-  exit 1
+python_files=$(git diff --cached --name-only --diff-filter=ACMR | grep '\\.py$' || true)
+if [ -n "$python_files" ]; then
+  python3 -m py_compile $python_files
 fi
 
-# 3️⃣ Trailing whitespace (WARNING)
+# 3️⃣ Ruff, Black, and isort checks (MEDIUM/HIGH)
+if [ -n "$python_files" ]; then
+  ruff check --fix $python_files
+  black --check $python_files
+  isort --check-only $python_files
+fi
+
+# 4️⃣ Trailing whitespace (WARNING)
 if git diff --cached --check | grep -q 'trailing whitespace'; then
   echo "Trailing whitespace detected!"
   exit 1
@@ -202,25 +225,43 @@ GITMESSAGE = """# Conventional Commit Message
 WORKFLOW_YAML = """name: CI
 on: [push, pull_request]
 jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Ruff check
+        run: ruff check --fix .
+      - name: Black check
+        run: black --check .
+      - name: Isort check
+        run: isort --check-only .
+
   test:
     runs-on: ubuntu-latest
+    needs: lint-and-format
     strategy:
       matrix:
-        python-version: [3.9, '3.10', '3.11']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install deps
         run: |
-          python -m venv venv
-          source venv/bin/activate
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run tests
         run: |
-          source venv/bin/activate
           pytest --cov .
 """
 
@@ -308,7 +349,7 @@ def scaffold(project_name: str, base_path: str, template: str):
     write_file(project_dir / ".gitignore", GITIGNORE)
     write_file(project_dir / "README.md", f"""# {project_name}
 Version: {VERSION}
-Codename: Waddler OS
+Codename: {CODENAME}
 Generated on: {datetime.utcnow().isoformat()} UTC
 
 ## Quick start
@@ -354,8 +395,8 @@ pip install -r requirements.txt
 # ----------------------------------------------------------------------
 # CLI entry point
 # ----------------------------------------------------------------------
-VERSION = "0.2.1"
-CODENAME = "Waddler OS"
+VERSION = "0.2.2"
+CODENAME = "Waddler OS Pro"
 
 def main():
     parser = argparse.ArgumentParser(

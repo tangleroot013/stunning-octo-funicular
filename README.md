@@ -1,8 +1,8 @@
 {
   "project_metadata": {
     "name": "God Mode Scaffolder",
-    "version": "0.2.1",
-    "codename": "Waddler OS",
+    "version": "0.2.2",
+    "codename": "Waddler OS Pro",
     "developer": "Carter the Duck Developer",
     "license": "MIT",
     "intended_for": "bilbywilby",

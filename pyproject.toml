@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "god-mode-scaffolder"
-version = "0.2.1"
+version = "0.2.2"
 description = "An AI-ready Python project bootstrapper creating production-ready scaffolding with security hooks and CI/CD pipelines."
 readme = "README.md"
 requires-python = ">=3.7"
