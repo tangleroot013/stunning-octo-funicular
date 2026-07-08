@@ -15,3 +15,10 @@ node_modules
 
 #!.yarn/cache
 .pnp.*
+
+# Local environment and secrets
+.env
+.env.*
+*.local
+settings.local.json
+secrets.env

@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import hatch
+from src.utils.config_loader import Settings
 
 
 def test_scaffold_generates_ci_and_hook_templates(tmp_path, monkeypatch):
@@ -26,6 +27,21 @@ def test_scaffold_generates_ci_and_hook_templates(tmp_path, monkeypatch):
     assert "ruff check --fix" in hook
     assert "black --check" in hook
     assert "isort --check-only" in hook
+
+
+def test_settings_loader_reads_repository_configuration():
+    Settings._data = {}
+    Settings.load()
+
+    assert Settings.get("ci.pre_commit.hooks", []) == [
+        "detect-secrets",
+        "py_compile",
+        "ruff",
+        "black",
+        "isort",
+        "trailing-whitespace",
+    ]
+    assert Settings.get("ci.pipeline_file", ".github/workflows/pipeline.yml") == ".github/workflows/ci.yml"
 
 
 def test_web_and_lib_templates_include_pro_boilerplate(tmp_path, monkeypatch):

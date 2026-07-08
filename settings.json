@@ -1,0 +1,158 @@
+{
+  "_security_note": "CRITICAL: Never share your actual ghp_ token or Anthropic API keys publicly! Use environment variables or local gitignored files to keep your workspace safe and secure.",
+  "repository": {
+    "owner": "tangleroot013",
+    "name": "stunning-octo-funicular",
+    "private": true,
+    "topics": [
+      "python",
+      "fastapi",
+      "scaffolding",
+      "ci-cd",
+      "automation",
+      "token-optimization"
+    ]
+  },
+  "github": {
+    "token": "ghp_PLACEHOLDER_NEVER_COMMIT_KEYS_DIRECTLY",
+    "default_branch": "main",
+    "pull_requests": {
+      "require_review": true,
+      "auto_merge_enabled": false,
+      "delete_branch_on_merge": true
+    },
+    "issue_labels": [
+      {
+        "name": "bug",
+        "color": "f29513",
+        "description": "Something isn't working as designed"
+      },
+      {
+        "name": "enhancement",
+        "color": "a2eeef",
+        "description": "New feature or template addition request"
+      },
+      {
+        "name": "security",
+        "color": "e11d21",
+        "description": "Critical security check or credentials issue"
+      }
+    ]
+  },
+  "ci": {
+    "pipeline_file": ".github/workflows/ci.yml",
+    "stages": [
+      "lint-and-format",
+      "test-matrix"
+    ],
+    "environments": {
+      "development": {
+        "ENV": "development",
+        "DEBUG": "true"
+      },
+      "production": {
+        "ENV": "production",
+        "DEBUG": "false"
+      }
+    },
+    "pre_commit": {
+      "enforced": true,
+      "hooks": [
+        "detect-secrets",
+        "py_compile",
+        "ruff",
+        "black",
+        "isort",
+        "trailing-whitespace"
+      ],
+      "hooks_configuration": {
+        "detect_secrets": {
+          "exclude_files": "tests/fixtures/.*",
+          "severity_threshold": "high"
+        },
+        "ruff": {
+          "args": [
+            "--fix",
+            "--show-fixes"
+          ]
+        },
+        "black": {
+          "line_length": 88,
+          "target_version": "py311"
+        },
+        "isort": {
+          "profile": "black",
+          "combine_as_imports": true
+        }
+      }
+    }
+  },
+  "web": {
+    "framework": "fastapi",
+    "settings_module": "src.core.config",
+    "server": {
+      "host": "127.0.0.1",
+      "port": 8000,
+      "reload": true,
+      "workers": 1
+    },
+    "security": {
+      "cors_origins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ],
+      "allowed_hosts": [
+        "*"
+      ]
+    }
+  },
+  "library": {
+    "package_name": "stunning_octo_funicular",
+    "version": "0.2.2",
+    "build_system": "setuptools",
+    "helpers": [
+      "swim_distance",
+      "is_water_friendly"
+    ],
+    "exclude_packages": [
+      "tests",
+      "docs"
+    ]
+  },
+  "testing": {
+    "framework": "pytest",
+    "test_file_pattern": "tests/**/test_*.py",
+    "arguments": [
+      "-v",
+      "--tb=short"
+    ],
+    "coverage": {
+      "enabled": true,
+      "threshold": 85,
+      "fail_under_threshold": true,
+      "reports": [
+        "term-missing",
+        "html"
+      ]
+    }
+  },
+  "ai_collaboration": {
+    "target_assistant": "Claude",
+    "context_file": ".claudeignore",
+    "token_efficiency_mode": "strict",
+    "directory_scanning_protection": {
+      "prevent_home_scan": true,
+      "enforce_workspace_runspace": true
+    },
+    "system_instructions_path": "docs/ai_instructions.txt"
+  },
+  "developer_environment": {
+    "alias_name": "hatch",
+    "binary_path": "~/.local/bin/hatch.py",
+    "backups_directory": "~/.nano-backups",
+    "shell_configs": [
+      "~/.zshrc",
+      "~/.bashrc"
+    ]
+  }
+}

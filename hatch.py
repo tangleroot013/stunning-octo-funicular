@@ -18,7 +18,9 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
+
+from src.utils.config_loader import settings
 
 # ----------------------------------------------------------------------
 # Constants (derived from the JSON spec)
@@ -194,7 +196,7 @@ dist/
 build/
 """
 
-PRE_COMMIT_HOOK = """#!/usr/bin/env bash
+PRE_COMMIT_HOOK_TEMPLATE = """#!/usr/bin/env bash
 # -------------------------------------------------
 # Pre-commit hook – secret detection, syntax checks,
 # Ruff/Black/isort validation, and whitespace guard.
@@ -214,11 +216,9 @@ if [ -n "$python_files" ]; then
   python3 -m py_compile $python_files
 fi
 
-# 3️⃣ Ruff, Black, and isort checks (MEDIUM/HIGH)
+# 3️⃣ Quality checks (MEDIUM/HIGH)
 if [ -n "$python_files" ]; then
-  ruff check --fix $python_files
-  black --check $python_files
-  isort --check-only $python_files
+  {hooks}
 fi
 
 # 4️⃣ Trailing whitespace (WARNING)
@@ -241,7 +241,7 @@ GITMESSAGE = """# Conventional Commit Message
 # Types: feat, fix, docs, style, refactor, perf, test, chore, ci
 """
 
-WORKFLOW_YAML = """name: CI
+WORKFLOW_YAML_TEMPLATE = """name: CI
 on: [push, pull_request]
 jobs:
   lint-and-format:
@@ -305,7 +305,40 @@ def create_git_hook(project_path: Path, global_template: bool = False):
     hook_dir = (project_path / ".git" / "hooks") if not global_template else Path.home() / ".git-templates" / "hooks"
     hook_dir.mkdir(parents=True, exist_ok=True)
     hook_path = hook_dir / "pre-commit"
-    write_file(hook_path, PRE_COMMIT_HOOK, mode="x")
+    hooks = settings.get("ci.pre_commit.hooks", [])
+    hook_commands = []
+    for hook in hooks:
+        if hook == "detect-secrets":
+            hook_commands.append('  if git diff --cached --name-only | grep -E \'\\.py$|\\.env$|\\.yml$|\\.yaml$\' | xargs grep -E -n \'(ANTHROPIC_API_KEY|github_token|password|secret|DATABASE_URL)\'; then')
+            hook_commands.append('    echo "QUACK! Secret detected in staged changes!"')
+            hook_commands.append('    exit 1')
+            hook_commands.append('  fi')
+        elif hook == "py_compile":
+            hook_commands.append('  python_files=$(git diff --cached --name-only --diff-filter=ACMR | grep \'\\.py$\' || true)')
+            hook_commands.append('  if [ -n "$python_files" ]; then')
+            hook_commands.append('    python3 -m py_compile $python_files')
+            hook_commands.append('  fi')
+        elif hook == "ruff":
+            hook_commands.append('  if [ -n "$python_files" ]; then')
+            hook_commands.append('    ruff check --fix $python_files')
+            hook_commands.append('  fi')
+        elif hook == "black":
+            hook_commands.append('  if [ -n "$python_files" ]; then')
+            hook_commands.append('    black --check $python_files')
+            hook_commands.append('  fi')
+        elif hook == "isort":
+            hook_commands.append('  if [ -n "$python_files" ]; then')
+            hook_commands.append('    isort --check-only $python_files')
+            hook_commands.append('  fi')
+        elif hook == "trailing-whitespace":
+            hook_commands.append('  if git diff --cached --check | grep -q \'trailing whitespace\'; then')
+            hook_commands.append('    echo "Trailing whitespace detected!"')
+            hook_commands.append('    exit 1')
+            hook_commands.append('  fi')
+
+    hook_body = "\n".join(hook_commands)
+    hook_content = PRE_COMMIT_HOOK_TEMPLATE.replace("{hooks}", hook_body)
+    write_file(hook_path, hook_content, mode="x")
 
 
 def create_git_message(project_path: Path, global_template: bool = False):
@@ -369,7 +402,7 @@ def scaffold(project_name: str, base_path: str, template: str):
     write_file(project_dir / "README.md", f"""# {project_name}
 Version: {VERSION}
 Codename: {CODENAME}
-Generated on: {datetime.utcnow().isoformat()} UTC
+Generated on: {datetime.now(timezone.utc).isoformat()} UTC
 
 ## Quick start
 ```bash
@@ -383,7 +416,15 @@ pip install -r requirements.txt
     reqs = tmpl.get("extra_deps", [])
     write_file(project_dir / "requirements.txt", "\n".join(reqs) + "\n")
 
-    write_file(project_dir / ".github/workflows/pipeline.yml", WORKFLOW_YAML)
+    workflow_paths = [".github/workflows/pipeline.yml"]
+    configured_workflow = settings.get("ci.pipeline_file", ".github/workflows/pipeline.yml")
+    if configured_workflow not in workflow_paths:
+        workflow_paths.append(configured_workflow)
+
+    for workflow_rel_path in workflow_paths:
+        workflow_file = project_dir / workflow_rel_path
+        workflow_file.parent.mkdir(parents=True, exist_ok=True)
+        write_file(workflow_file, WORKFLOW_YAML_TEMPLATE)
 
     # ------------------------------------------------------------------
     # 3️⃣ Template-specific files
