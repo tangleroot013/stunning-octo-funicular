@@ -331,9 +331,7 @@ def install_global_template():
     template_dir.mkdir(parents=True, exist_ok=True)
 
     # Hook
-    hook_dir = template_dir / "hooks"
-    hook_dir.mkdir(parents=True, exist_ok=True)
-    write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK_TEMPLATE, mode="x")
+    create_git_hook(Path.home(), global_template=True)
 
     # Commit message template
     write_file(Path.home() / ".gitmessage", GITMESSAGE)
