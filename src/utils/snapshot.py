@@ -1,8 +1,46 @@
+from __future__ import annotations
+
 import argparse
+import fnmatch
 import pathlib
 from typing import List
 
 from src.utils.config_loader import settings
+
+
+def _glob_match(rel_parts: list[str], pat_parts: list[str]) -> bool:
+    """Match path parts against a glob pattern, where '**' matches zero or more segments."""
+    if not pat_parts:
+        return not rel_parts
+    if not rel_parts:
+        return all(p == "**" for p in pat_parts)
+    pat = pat_parts[0]
+    if pat == "**":
+        return _glob_match(rel_parts, pat_parts[1:]) or _glob_match(rel_parts[1:], pat_parts)
+    if not fnmatch.fnmatch(rel_parts[0], pat):
+        return False
+    return _glob_match(rel_parts[1:], pat_parts[1:])
+
+
+def _should_ignore(rel_str: str, pattern: str) -> bool:
+    """Match a gitignore-style pattern against a relative file path."""
+    bare = pattern.rstrip("/")
+    is_dir_pattern = bare != pattern
+    if is_dir_pattern:
+        pattern = bare + "/**"
+    if "/" in bare:
+        # Non-trailing slash means the pattern is anchored to the repo root.
+        return _glob_match(rel_str.split("/"), pattern.split("/"))
+    if is_dir_pattern:
+        # Directory patterns with no non-trailing slash match at any depth.
+        rel_parts = rel_str.split("/")
+        pat_parts = pattern.split("/")
+        for i in range(len(rel_parts)):
+            if _glob_match(rel_parts[i:], pat_parts):
+                return True
+        return False
+    # Plain file-name patterns match the basename at any depth.
+    return fnmatch.fnmatch(rel_str.split("/")[-1], pattern)
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
@@ -21,10 +59,7 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
             continue
         rel = path.relative_to(root_dir)
         rel_str = rel.as_posix()
-        if any(
-            rel_str == pattern or rel_str.startswith(pattern.rstrip("/"))
-            for pattern in exclude_globs
-        ):
+        if any(_should_ignore(rel_str, pattern) for pattern in exclude_globs):
             continue
         files.append(path)
     return sorted(files)
