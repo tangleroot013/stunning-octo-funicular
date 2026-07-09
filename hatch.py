@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
+from src.utils.wizard import collect_answers, DEFAULT_COVERAGE_THRESHOLD
 
 # ----------------------------------------------------------------------
 # Constants (derived from the JSON spec)
@@ -248,7 +249,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run tests
         run: |
-          pytest --cov .
+          pytest --cov . --cov-fail-under={coverage_threshold}
 """
 
 # ----------------------------------------------------------------------
@@ -345,7 +346,7 @@ def install_global_template():
 # ----------------------------------------------------------------------
 # Main scaffolder logic
 # ----------------------------------------------------------------------
-def scaffold(project_name: str, base_path: str, template: str):
+def scaffold(project_name: str, base_path: str, template: str, coverage_threshold: int = DEFAULT_COVERAGE_THRESHOLD):
     base = Path(base_path).expanduser().resolve()
     project_dir = base / project_name
     if project_dir.exists():
@@ -393,7 +394,13 @@ pip install -r requirements.txt
     for workflow_rel_path in workflow_paths:
         workflow_file = project_dir / workflow_rel_path
         workflow_file.parent.mkdir(parents=True, exist_ok=True)
-        write_file(workflow_file, WORKFLOW_YAML_TEMPLATE)
+        write_file(
+            workflow_file,
+            render_template(
+                WORKFLOW_YAML_TEMPLATE,
+                coverage_threshold=str(coverage_threshold),
+            ),
+        )
 
     # ------------------------------------------------------------------
     # 3️⃣ Template-specific files
@@ -426,6 +433,26 @@ pip install -r requirements.txt
 # ----------------------------------------------------------------------
 VERSION = "0.2.2"
 CODENAME = "Waddler OS Pro"
+
+
+def run_wizard() -> None:
+    """Launch the interactive scaffolding wizard."""
+    try:
+        answers = collect_answers()
+    except (KeyboardInterrupt, EOFError):
+        print("\nWizard cancelled.")
+        sys.exit(0)
+
+    if answers.get("setup_global"):
+        install_global_template()
+
+    scaffold(
+        answers["project_name"],
+        answers["base_path"],
+        answers["template"],
+        coverage_threshold=answers["coverage_threshold"],
+    )
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -475,7 +502,8 @@ def main():
         sys.exit(0)
 
     if not args.project_name:
-        parser.error("project_name is required unless --setup-global or --sync-ignores is used")
+        run_wizard()
+        return
 
     scaffold(args.project_name, args.path, args.template)
 
