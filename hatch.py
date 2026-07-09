@@ -17,6 +17,7 @@ import sys
 import json
 import argparse
 import subprocess
+import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -414,6 +415,7 @@ def scaffold(project_name: str, base_path: str, template: str, coverage_threshol
     sync_ok, sync_msg = sync_ignore_files(root_dir=project_dir, verbose=False)
     if not sync_ok:
         print(f"✗ Could not synchronize ignore files: {sync_msg}", file=sys.stderr)
+        shutil.rmtree(project_dir, ignore_errors=True)
         raise SystemExit(1)
 
     write_file(project_dir / "README.md", f"""# {project_name}
