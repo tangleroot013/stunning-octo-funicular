@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
+from src.utils.env_checker import check_environment, format_report
 
 # ----------------------------------------------------------------------
 # Constants (derived from the JSON spec)
@@ -346,6 +347,13 @@ def install_global_template():
 # Main scaffolder logic
 # ----------------------------------------------------------------------
 def scaffold(project_name: str, base_path: str, template: str):
+    # Lightweight pre-flight check: warn, but don't block, if the host is missing tools.
+    passed, statuses = check_environment(include_optional=False)
+    if not passed:
+        print("⚠️  Environment pre-flight failed:", file=sys.stderr)
+        print(format_report(statuses, passed), file=sys.stderr)
+        print("Continuing anyway...")
+
     base = Path(base_path).expanduser().resolve()
     project_dir = base / project_name
     if project_dir.exists():
@@ -441,6 +449,8 @@ def main():
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--sync-ignores", action="store_true",
                         help="Synchronize .claudeignore and .gitignore from settings.json")
+    parser.add_argument("--check-env", action="store_true",
+                        help="Run an environment pre-flight check and exit")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be written without modifying files")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -451,6 +461,11 @@ def main():
     if args.version:
         print(f"hatch.py {VERSION} ({CODENAME})")
         sys.exit(0)
+
+    if args.check_env:
+        passed, statuses = check_environment(include_optional=True)
+        print(format_report(statuses, passed))
+        sys.exit(0 if passed else 1)
 
     if args.sync_ignores:
         try:
@@ -475,7 +490,7 @@ def main():
         sys.exit(0)
 
     if not args.project_name:
-        parser.error("project_name is required unless --setup-global or --sync-ignores is used")
+        parser.error("project_name is required unless --setup-global, --sync-ignores, or --check-env is used")
 
     scaffold(args.project_name, args.path, args.template)
 
