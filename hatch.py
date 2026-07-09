@@ -17,6 +17,7 @@ import sys
 import json
 import argparse
 import subprocess
+import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -325,15 +326,35 @@ def create_git_message(project_path: Path, global_template: bool = False):
     write_file(target, GITMESSAGE)
 
 
+def _run_git_step(command: list[str], cwd: Path) -> bool:
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        print(f"⚠️  Git command failed: {' '.join(command)}", file=sys.stderr)
+        print(f"   {exc}", file=sys.stderr)
+        return False
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "(no stderr output)"
+        print(f"⚠️  Git command failed: {' '.join(command)}", file=sys.stderr)
+        print(f"   stderr: {stderr}", file=sys.stderr)
+        return False
+
+    return True
+
+
 def init_git_repo(project_path: Path):
-    subprocess.run(["git", "init"], cwd=str(project_path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(["git", "add", "."], cwd=str(project_path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(
-        ["git", "commit", "-m", "Initial commit: scaffold"],
-        cwd=str(project_path),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
+    if not _run_git_step(["git", "init"], project_path):
+        return
+    if not _run_git_step(["git", "add", "."], project_path):
+        return
+    _run_git_step(["git", "commit", "-m", "Initial commit: scaffold"], project_path)
 
 
 def install_global_template():
@@ -349,8 +370,23 @@ def install_global_template():
     write_file(Path.home() / ".gitmessage", GITMESSAGE)
 
     # Register with Git
-    subprocess.run(["git", "config", "--global", "init.templateDir", str(template_dir)],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        result = subprocess.run(
+            ["git", "config", "--global", "init.templateDir", str(template_dir)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        print("✗ Failed to install global Git template: git config command not found", file=sys.stderr)
+        print(f"   {exc}", file=sys.stderr)
+        raise SystemExit(1)
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "(no stderr output)"
+        print("✗ Failed to install global Git template:", file=sys.stderr)
+        print(f"   stderr: {stderr}", file=sys.stderr)
+        raise SystemExit(1)
 
     print("✅ Global Git template installed at:", template_dir)
 
@@ -378,7 +414,9 @@ def scaffold(project_name: str, base_path: str, template: str, coverage_threshol
     # ------------------------------------------------------------------
     sync_ok, sync_msg = sync_ignore_files(root_dir=project_dir, verbose=False)
     if not sync_ok:
-        print(f"⚠️  Could not synchronize ignore files: {sync_msg}", file=sys.stderr)
+        print(f"✗ Could not synchronize ignore files: {sync_msg}", file=sys.stderr)
+        shutil.rmtree(project_dir, ignore_errors=True)
+        raise SystemExit(1)
 
     write_file(project_dir / "README.md", f"""# {project_name}
 Version: {VERSION}
