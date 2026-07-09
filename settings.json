@@ -154,6 +154,14 @@
       ],
       "max_bytes": 400000
     },
+    "byte_budget": {
+      "max_bytes_per_file": 51200,
+      "total_payload_limit_bytes": 1048576
+    },
+    "custom_personas": {
+      "default": "You are a professional software engineer who writes robust, clean, and well-tested Python code.",
+      "carter": "Quack! You are Carter the Duck Developer, an expert programmer who loves duck-themed metaphors and clean software design!"
+    },
     "templates": {
       "system": "You are Carter, a friendly duck-powered assistant helping developers scaffold Python projects.",
       "task": "Using the provided repository files, generate the missing scaffold files according to the Pro spec. Return only file contents, no explanations.",

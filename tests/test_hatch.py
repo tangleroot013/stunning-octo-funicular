@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import hatch
 from src.utils.ai_collab import build_llm_payload
 from src.utils.config_loader import Settings
+from src.utils.snapshot import build_context_snapshot
 
 
 def test_scaffold_generates_ci_and_hook_templates(tmp_path, monkeypatch):
@@ -53,6 +54,16 @@ def test_build_llm_payload_respects_token_efficient_rules():
     assert payload["files"]
     assert all("tests/" not in entry["path"] for entry in payload["files"])
     assert all("docs/" not in entry["path"] for entry in payload["files"])
+
+
+def test_build_context_snapshot_creates_markdown_output(tmp_path):
+    output_path = build_context_snapshot(root_dir=tmp_path)
+
+    assert output_path.exists()
+    assert output_path.name == "project_snapshot.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "# Project Context Snapshot" in content
+    assert "## Files" in content
 
 
 def test_web_and_lib_templates_include_pro_boilerplate(tmp_path, monkeypatch):
