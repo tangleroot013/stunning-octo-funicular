@@ -83,7 +83,7 @@ The `pipeline.yml` uses the `coverage_threshold` argument so generated projects 
 ## Testing strategy
 
 - Unit tests for each utility module (`tests/test_wizard.py`, `tests/test_snapshot.py`, `tests/test_env_checker.py`, etc.).
-- CLI integration tests in `tests/test_hatch_cli.py` that call `hatch.main()` with patched `sys.argv`.
+- CLI integration tests in `tests/test_hatch.py` that call `hatch.main()` with patched `sys.argv`.
 - Snapshot generation tests use a temporary directory to avoid touching the repository itself.
 - Git operations are mocked in scaffold tests to keep CI fast and side-effect free.
 

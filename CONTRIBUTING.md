@@ -47,13 +47,13 @@ All changes should include tests or update existing tests. We use `pytest` fixtu
 1. Add the template to the `TEMPLATES` dictionary in `hatch.py`.
 2. Define `dirs`, `files`, and `extra_deps`.
 3. Use `{project_name}`, `{version}`, and `{package_name}` placeholders. These are filled by `render_template`.
-4. Add a test to `tests/test_hatch_cli.py` or create a focused test file.
+4. Add a test to `tests/test_hatch.py` or create a focused test file.
 
 ## Adding a new CLI flag
 
 1. Add the argument in `hatch.py::main()`.
 2. Wire it into `scaffold()` or `run_wizard()` as appropriate.
-3. Add a CLI test in `tests/test_hatch_cli.py`.
+3. Add a CLI test in `tests/test_hatch.py`.
 4. Update `README.md` and `CONTRIBUTING.md` if the flag changes the developer workflow.
 
 ## Adding a settings option
