@@ -24,12 +24,22 @@ def _glob_match(rel_parts: list[str], pat_parts: list[str]) -> bool:
 
 def _should_ignore(rel_str: str, pattern: str) -> bool:
     """Match a gitignore-style pattern against a relative file path."""
-    if "/" in pattern:
-        # Path patterns are relative to the repo root.
-        if pattern.endswith("/"):
-            pattern = pattern.rstrip("/") + "/**"
+    bare = pattern.rstrip("/")
+    is_dir_pattern = bare != pattern
+    if is_dir_pattern:
+        pattern = bare + "/**"
+    if "/" in bare:
+        # Non-trailing slash means the pattern is anchored to the repo root.
         return _glob_match(rel_str.split("/"), pattern.split("/"))
-    # Patterns without a slash match the file name at any depth.
+    if is_dir_pattern:
+        # Directory patterns with no non-trailing slash match at any depth.
+        rel_parts = rel_str.split("/")
+        pat_parts = pattern.split("/")
+        for i in range(len(rel_parts)):
+            if _glob_match(rel_parts[i:], pat_parts):
+                return True
+        return False
+    # Plain file-name patterns match the basename at any depth.
     return fnmatch.fnmatch(rel_str.split("/")[-1], pattern)
 
 
