@@ -89,6 +89,8 @@ python -m pytest -q
 
 For the scaffolder itself there is no separate `requirements.txt`; tests only need `pytest`.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, conventions, and how to extend the scaffolder, and [docs/architecture.md](docs/architecture.md) for a module-by-module overview.
+
 ## Project layout
 
 ```text
