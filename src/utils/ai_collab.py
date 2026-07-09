@@ -1,8 +1,9 @@
-import fnmatch
 import pathlib
 from typing import Any, Dict, List
 
 from src.utils.config_loader import settings
+from src.utils.paths import REPO_ROOT
+from src.utils.workspace import load_exclude_patterns, matches_any
 
 
 class PromptTemplates:
@@ -27,16 +28,12 @@ class PromptTemplates:
 class WorkspaceFilter:
     """Collect a compact, settings-driven set of files for LLM context."""
 
-    _repo_root: pathlib.Path = pathlib.Path(__file__).resolve().parents[2]
+    _repo_root: pathlib.Path = REPO_ROOT
 
     @classmethod
     def _load_rules(cls) -> Dict[str, Any]:
         base_key = "ai_collaboration.directory_scanning_protection"
-        patterns = settings.get("workspace.ignore_patterns.claudeignore")
-        if not patterns:
-            patterns = settings.get(f"{base_key}.exclude_globs", [])
-        if not isinstance(patterns, list):
-            patterns = []
+        patterns = load_exclude_patterns()
 
         rules = {
             "exclude_patterns": patterns,
@@ -46,8 +43,7 @@ class WorkspaceFilter:
 
     @classmethod
     def _is_excluded(cls, rel_path: pathlib.Path, patterns: List[str]) -> bool:
-        path_str = str(rel_path.as_posix())
-        return any(fnmatch.fnmatch(path_str, pat) for pat in patterns)
+        return matches_any(rel_path, patterns)
 
     @classmethod
     def collect_files(cls) -> List[pathlib.Path]:
@@ -92,11 +88,14 @@ def build_llm_payload() -> Dict[str, Any]:
     )
 
     if mode == "relaxed":
-        patterns = settings.get("ai_collaboration.directory_scanning_protection.exclude_globs", [])
+        patterns = settings.get(
+            "ai_collaboration.directory_scanning_protection.exclude_globs", []
+        )
         files = [
             p
             for p in pathlib.Path.cwd().rglob("*")
-            if p.is_file() and not any(fnmatch.fnmatch(str(p.relative_to(pathlib.Path.cwd()).as_posix()), pat) for pat in patterns)
+            if p.is_file()
+            and not matches_any(p.relative_to(pathlib.Path.cwd()), patterns)
         ]
     else:
         files = WorkspaceFilter.collect_files()

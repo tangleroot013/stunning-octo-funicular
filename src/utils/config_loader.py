@@ -2,7 +2,9 @@ import json
 import pathlib
 from typing import Any, List
 
-_ROOT = pathlib.Path(__file__).resolve().parents[2]
+from src.utils.paths import REPO_ROOT
+
+_ROOT = REPO_ROOT
 
 
 def _load_json(file_path: pathlib.Path) -> dict:

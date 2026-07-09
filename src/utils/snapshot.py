@@ -3,17 +3,12 @@ import pathlib
 from typing import List
 
 from src.utils.config_loader import settings
+from src.utils.paths import REPO_ROOT
+from src.utils.workspace import load_exclude_patterns
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
-    exclude_globs = settings.get("workspace.ignore_patterns.claudeignore")
-    if not exclude_globs:
-        exclude_globs = settings.get(
-            "ai_collaboration.directory_scanning_protection.exclude_globs",
-            [],
-        )
-    if not isinstance(exclude_globs, list):
-        exclude_globs = []
+    exclude_globs = load_exclude_patterns()
 
     files: List[pathlib.Path] = []
     for path in root_dir.rglob("*"):
@@ -31,7 +26,7 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
 
 
 def build_context_snapshot(root_dir: pathlib.Path | None = None) -> pathlib.Path:
-    root = pathlib.Path(root_dir or pathlib.Path(__file__).resolve().parents[2]).resolve()
+    root = pathlib.Path(root_dir or REPO_ROOT).resolve()
     files = _iter_project_files(root)
 
     max_bytes_per_file = settings.get("ai_collaboration.byte_budget.max_bytes_per_file", 51_200)
