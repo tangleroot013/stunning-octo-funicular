@@ -22,7 +22,7 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
         rel = path.relative_to(root_dir)
         rel_str = rel.as_posix()
         if any(
-            rel_str == pattern or rel_str.startswith(pattern.rstrip("/"))
+            rel_str == pattern or rel_str.startswith(pattern.rstrip("/") + "/")
             for pattern in exclude_globs
         ):
             continue

@@ -57,10 +57,11 @@ def test_iter_project_files_excludes_matching_patterns(tmp_path, monkeypatch):
     (tmp_path / "top.txt").write_text("drop", encoding="utf-8")
     (tmp_path / "secrets").mkdir()
     (tmp_path / "secrets" / "key.txt").write_text("secret", encoding="utf-8")
+    (tmp_path / "secretsfile.txt").write_text("not secret", encoding="utf-8")
 
     rels = [p.relative_to(tmp_path).as_posix() for p in _iter_project_files(tmp_path)]
 
-    assert rels == ["keep.txt"]
+    assert rels == ["keep.txt", "secretsfile.txt"]
 
 
 def test_iter_project_files_falls_back_to_exclude_globs(tmp_path, monkeypatch):
@@ -161,20 +162,17 @@ def test_build_context_snapshot_handles_unreadable_files(tmp_path, monkeypatch):
     assert "### bad.bin" in content
 
 
-def test_build_context_snapshot_defaults_root_to_repo_root(monkeypatch):
+def test_build_context_snapshot_defaults_root_to_repo_root(tmp_path, monkeypatch):
     _stub_settings(monkeypatch, {})
-    captured = {}
+    fake_snapshot = tmp_path / "src" / "utils" / "snapshot.py"
+    fake_snapshot.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(snapshot, "__file__", str(fake_snapshot))
+    monkeypatch.setattr(snapshot, "_iter_project_files", lambda root: [])
 
-    def fake_iter(root):
-        captured["root"] = root
-        return []
+    output_path = build_context_snapshot()
 
-    monkeypatch.setattr(snapshot, "_iter_project_files", fake_iter)
-
-    repo_root = pathlib.Path(snapshot.__file__).resolve().parents[2]
-    build_context_snapshot()
-
-    assert captured["root"] == repo_root
+    assert output_path == tmp_path / "project_snapshot.md"
+    assert output_path.exists()
 
 
 # --------------------------------------------------------------------------
