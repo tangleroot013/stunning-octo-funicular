@@ -1,8 +1,18 @@
+from __future__ import annotations
+
 import argparse
 import pathlib
 from typing import List
 
 from src.utils.config_loader import settings
+
+
+def _should_ignore(rel_str: str, pattern: str) -> bool:
+    """Match an exact file pattern or a directory prefix without over-matching."""
+    if pattern.endswith("/"):
+        prefix = pattern.rstrip("/")
+        return rel_str == prefix or rel_str.startswith(prefix + "/")
+    return rel_str == pattern
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
@@ -21,10 +31,7 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
             continue
         rel = path.relative_to(root_dir)
         rel_str = rel.as_posix()
-        if any(
-            rel_str == pattern or rel_str.startswith(pattern.rstrip("/"))
-            for pattern in exclude_globs
-        ):
+        if any(_should_ignore(rel_str, pattern) for pattern in exclude_globs):
             continue
         files.append(path)
     return sorted(files)
