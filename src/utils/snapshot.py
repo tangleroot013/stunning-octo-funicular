@@ -6,7 +6,12 @@ from src.utils.config_loader import settings
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
-    exclude_globs = settings.get("ai_collaboration.directory_scanning_protection.exclude_globs", [])
+    exclude_globs = settings.get("workspace.ignore_patterns.claudeignore")
+    if not exclude_globs:
+        exclude_globs = settings.get(
+            "ai_collaboration.directory_scanning_protection.exclude_globs",
+            [],
+        )
     if not isinstance(exclude_globs, list):
         exclude_globs = []
 
@@ -16,7 +21,10 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
             continue
         rel = path.relative_to(root_dir)
         rel_str = rel.as_posix()
-        if any(rel_str == pattern or rel_str.startswith(pattern.rstrip("/")) for pattern in exclude_globs):
+        if any(
+            rel_str == pattern or rel_str.startswith(pattern.rstrip("/"))
+            for pattern in exclude_globs
+        ):
             continue
         files.append(path)
     return sorted(files)

@@ -21,6 +21,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from src.utils.config_loader import settings
+from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
 
 # ----------------------------------------------------------------------
 # Constants (derived from the JSON spec)
@@ -161,40 +162,6 @@ def test_validate_swim_distance_rejects_negative_values():
     }
 }
 
-CLAUDEIGNORE = """node_modules/
-venv/
-.venv/
-__pycache__/
-.git/
-.vscode/
-.idea/
-.DS_Store
-dist/
-build/
-*.exe
-*.out
-*.csv
-*.jsonl
-*.sql
-.pytest_cache/
-.coverage
-htmlcov/
-*.egg-info/
-"""
-
-GITIGNORE = """venv/
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-.coverage
-htmlcov/
-*.egg-info/
-.env
-.DS_Store
-dist/
-build/
-"""
 
 PRE_COMMIT_HOOK_TEMPLATE = """#!/usr/bin/env bash
 # -------------------------------------------------
@@ -364,7 +331,7 @@ def install_global_template():
     # Hook
     hook_dir = template_dir / "hooks"
     hook_dir.mkdir(parents=True, exist_ok=True)
-    write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK, mode="x")
+    write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK_TEMPLATE, mode="x")
 
     # Commit message template
     write_file(Path.home() / ".gitmessage", GITMESSAGE)
@@ -395,10 +362,12 @@ def scaffold(project_name: str, base_path: str, template: str):
         (project_dir / d).mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
-    # 2️⃣ Populate static files
+    # 2️⃣ Populate ignore files from settings, then static files
     # ------------------------------------------------------------------
-    write_file(project_dir / ".claudeignore", CLAUDEIGNORE)
-    write_file(project_dir / ".gitignore", GITIGNORE)
+    sync_ok, sync_msg = sync_ignore_files(root_dir=project_dir, verbose=False)
+    if not sync_ok:
+        print(f"⚠️  Could not synchronize ignore files: {sync_msg}", file=sys.stderr)
+
     write_file(project_dir / "README.md", f"""# {project_name}
 Version: {VERSION}
 Codename: {CODENAME}
@@ -470,6 +439,12 @@ def main():
     parser.add_argument("--setup-global", action="store_true",
                         help="Install global Git template & hooks for all future repos")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
+    parser.add_argument("--sync-ignores", action="store_true",
+                        help="Synchronize .claudeignore and .gitignore from settings.json")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Show what would be written without modifying files")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Print detailed progress")
 
     args = parser.parse_args()
 
@@ -477,12 +452,30 @@ def main():
         print(f"hatch.py {VERSION} ({CODENAME})")
         sys.exit(0)
 
+    if args.sync_ignores:
+        try:
+            success, message = sync_ignore_files(
+                root_dir=Path(args.path).resolve(),
+                verbose=args.verbose,
+                dry_run=args.dry_run,
+            )
+        except SyncIgnoresError as exc:
+            print(f"✗ {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        if success:
+            print(f"✓ {message}")
+            sys.exit(0)
+        else:
+            print(f"✗ {message}", file=sys.stderr)
+            sys.exit(1)
+
     if args.setup_global:
         install_global_template()
         sys.exit(0)
 
     if not args.project_name:
-        parser.error("project_name is required unless --setup-global is used")
+        parser.error("project_name is required unless --setup-global or --sync-ignores is used")
 
     scaffold(args.project_name, args.path, args.template)
 

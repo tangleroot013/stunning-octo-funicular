@@ -32,12 +32,16 @@ class WorkspaceFilter:
     @classmethod
     def _load_rules(cls) -> Dict[str, Any]:
         base_key = "ai_collaboration.directory_scanning_protection"
+        patterns = settings.get("workspace.ignore_patterns.claudeignore")
+        if not patterns:
+            patterns = settings.get(f"{base_key}.exclude_globs", [])
+        if not isinstance(patterns, list):
+            patterns = []
+
         rules = {
-            "exclude_patterns": settings.get(f"{base_key}.exclude_globs", []),
+            "exclude_patterns": patterns,
             "max_total_bytes": settings.get(f"{base_key}.max_bytes", 400_000),
         }
-        if not isinstance(rules["exclude_patterns"], list):
-            rules["exclude_patterns"] = []
         return rules
 
     @classmethod
