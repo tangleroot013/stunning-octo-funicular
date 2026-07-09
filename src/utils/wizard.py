@@ -41,14 +41,19 @@ def _is_valid_path(path: str) -> bool:
     return bool(path)
 
 
+def _as_str(value) -> Optional[str]:
+    return str(value) if value is not None else None
+
+
 def ask(
     question: str,
     default: Optional[str] = None,
     validator: Optional[Callable[[str], bool]] = None,
 ) -> str:
     """Ask for free-text input, optionally validating and falling back to a default."""
+    default = _as_str(default)
     while True:
-        prompt = f"{question}"
+        prompt = f"{question}: "
         if default is not None:
             prompt = f"{question} [{default}]: "
         print(f"  {prompt}", end="")
@@ -111,36 +116,43 @@ def yes_no(question: str, default: bool = False) -> bool:
         print("    Please answer yes/y or no/n.")
 
 
-def collect_answers() -> dict:
-    """Collect all user choices needed for scaffolding."""
+def collect_answers(defaults: Optional[dict] = None) -> dict:
+    """Collect all user choices needed for scaffolding.
+
+    Args:
+        defaults: Optional pre-filled values (e.g. from CLI flags) to use as
+            defaults in the prompts.
+    """
+    defaults = defaults or {}
     _print_banner()
 
     project_name = ask(
         "Project name",
+        default=defaults.get("project_name"),
         validator=_is_valid_project_name,
     )
 
     template = choose(
         "Project template",
         TEMPLATE_CHOICES,
-        default="cli",
+        default=defaults.get("template", "cli"),
     )
 
     base_path = ask(
         "Base directory for the new project",
-        default=".",
+        default=defaults.get("base_path", "."),
         validator=_is_valid_path,
     )
 
     coverage = ask(
         "Coverage threshold (%)",
-        default=str(DEFAULT_COVERAGE_THRESHOLD),
+        default=str(defaults.get("coverage_threshold", DEFAULT_COVERAGE_THRESHOLD)),
         validator=_is_valid_coverage,
     )
 
     setup_global = yes_no(
         "Install global Git templates and hooks",
-        default=False,
+        default=bool(defaults.get("setup_global", False)),
     )
 
     return {
