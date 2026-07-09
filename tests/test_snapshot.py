@@ -38,7 +38,10 @@ def test_should_ignore_does_not_overmatch():
         ("foo/tests/test_foo.py", "tests/**", False),
         ("docs/index.md", "docs/", True),
         ("docs/deep/nested/file.md", "docs/", True),
+        ("foo/tests/test_foo.py", "tests/", True),
+        ("src/__pycache__/foo.pyc", "__pycache__/", True),
         ("foo.egg-info/PKG-INFO", "*.egg-info/", True),
+        ("dist/foo.egg-info/PKG-INFO", "*.egg-info/", True),
     ],
 )
 def test_should_ignore_globs(rel_str, pattern, expected):

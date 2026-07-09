@@ -70,23 +70,48 @@ def _venv_module_available() -> bool:
         return False
 
 
+_UNSET = object()
+
+
+def _clean_tool_dict(value: object) -> Optional[dict[str, str]]:
+    """Return a cleaned string-to-string dict, or None if the input is not a dict."""
+    if not isinstance(value, dict):
+        return None
+    return {
+        k: v
+        for k, v in value.items()
+        if isinstance(k, str) and isinstance(v, str)
+    }
+
+
 def _load_tool_lists() -> tuple[dict[str, str], dict[str, str]]:
-    """Load required/optional tool lists from settings when present."""
+    """Load required/optional tool lists from settings when present.
+
+    A missing key falls back to the built-in defaults. An explicit empty dict
+    means "no additional tools beyond python/venv", which is honored.
+    """
     preflight = settings.get("developer_environment.preflight_checks", {})
     if not isinstance(preflight, dict):
         return REQUIRED_TOOLS, OPTIONAL_TOOLS
 
-    required = {
-        k: v
-        for k, v in preflight.get("required", {}).items()
-        if isinstance(k, str) and isinstance(v, str)
-    }
-    optional = {
-        k: v
-        for k, v in preflight.get("optional", {}).items()
-        if isinstance(k, str) and isinstance(v, str)
-    }
-    return (required or REQUIRED_TOOLS, optional or OPTIONAL_TOOLS)
+    raw_required = preflight.get("required", _UNSET)
+    raw_optional = preflight.get("optional", _UNSET)
+
+    required = (
+        _clean_tool_dict(raw_required)
+        if raw_required is not _UNSET
+        else REQUIRED_TOOLS
+    )
+    optional = (
+        _clean_tool_dict(raw_optional)
+        if raw_optional is not _UNSET
+        else OPTIONAL_TOOLS
+    )
+
+    return (
+        required if required is not None else REQUIRED_TOOLS,
+        optional if optional is not None else OPTIONAL_TOOLS,
+    )
 
 
 def check_environment(include_optional: bool = True) -> tuple[bool, List[ToolStatus]]:

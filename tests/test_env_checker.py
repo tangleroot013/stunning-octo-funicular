@@ -139,3 +139,32 @@ def test_hatch_cli_check_env_fails_when_check_fails(monkeypatch):
         with patch.object(sys, "argv", ["hatch.py", "--check-env"]):
             hatch.main()
     assert exc.value.code == 1
+
+
+def test_load_tool_lists_honors_explicit_empty_dict(monkeypatch):
+    monkeypatch.setattr(
+        env_checker,
+        "settings",
+        type("MockSettings", (), {
+            "get": lambda self, key, default=None: {
+                "required": {},
+                "optional": {},
+            }
+        })(),
+    )
+    required, optional = env_checker._load_tool_lists()
+    assert required == {}
+    assert optional == {}
+
+
+def test_load_tool_lists_falls_back_when_key_missing(monkeypatch):
+    monkeypatch.setattr(
+        env_checker,
+        "settings",
+        type("MockSettings", (), {
+            "get": lambda self, key, default=None: {}
+        })(),
+    )
+    required, optional = env_checker._load_tool_lists()
+    assert required == env_checker.REQUIRED_TOOLS
+    assert optional == env_checker.OPTIONAL_TOOLS
