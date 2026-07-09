@@ -352,7 +352,7 @@ def scaffold(project_name: str, base_path: str, template: str):
     if not passed:
         print("⚠️  Environment pre-flight failed:", file=sys.stderr)
         print(format_report(statuses, passed), file=sys.stderr)
-        print("Continuing anyway...")
+        print("Continuing anyway...", file=sys.stderr)
 
     base = Path(base_path).expanduser().resolve()
     project_dir = base / project_name
