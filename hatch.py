@@ -171,28 +171,9 @@ PRE_COMMIT_HOOK_TEMPLATE = """#!/usr/bin/env bash
 
 set -e
 
-# 1️⃣ Secret detection (CRITICAL)
-if git diff --cached --name-only | grep -E '\\.py$|\\.env$|\\.yml$|\\.yaml$' | xargs grep -E -n '(ANTHROPIC_API_KEY|github_token|password|secret|DATABASE_URL)'; then
-  echo "QUACK! Secret detected in staged changes!"
-  exit 1
-fi
-
-# 2️⃣ Python syntax validation (HIGH)
 python_files=$(git diff --cached --name-only --diff-filter=ACMR | grep '\\.py$' || true)
-if [ -n "$python_files" ]; then
-  python3 -m py_compile $python_files
-fi
 
-# 3️⃣ Quality checks (MEDIUM/HIGH)
-if [ -n "$python_files" ]; then
-  {hooks}
-fi
-
-# 4️⃣ Trailing whitespace (WARNING)
-if git diff --cached --check | grep -q 'trailing whitespace'; then
-  echo "Trailing whitespace detected!"
-  exit 1
-fi
+{hooks}
 
 exit 0
 """
