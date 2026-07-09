@@ -3,6 +3,7 @@ import pathlib
 from typing import List
 
 from src.utils.config_loader import settings
+from src.utils.ignore_match import matches_any
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
@@ -20,11 +21,7 @@ def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
         if not path.is_file():
             continue
         rel = path.relative_to(root_dir)
-        rel_str = rel.as_posix()
-        if any(
-            rel_str == pattern or rel_str.startswith(pattern.rstrip("/"))
-            for pattern in exclude_globs
-        ):
+        if matches_any(rel.as_posix(), exclude_globs):
             continue
         files.append(path)
     return sorted(files)

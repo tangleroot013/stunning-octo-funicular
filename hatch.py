@@ -33,7 +33,11 @@ def _valid_coverage_threshold(value: str) -> int:
 
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
-from src.utils.wizard import collect_answers, DEFAULT_COVERAGE_THRESHOLD
+from src.utils.wizard import (
+    DEFAULT_COVERAGE_THRESHOLD,
+    collect_answers,
+    is_valid_project_name,
+)
 
 # ----------------------------------------------------------------------
 # Constants (derived from the JSON spec)
@@ -359,7 +363,23 @@ def install_global_template():
 # ----------------------------------------------------------------------
 def scaffold(project_name: str, base_path: str, template: str, coverage_threshold: int = DEFAULT_COVERAGE_THRESHOLD):
     base = Path(base_path).expanduser().resolve()
+    if not is_valid_project_name(project_name):
+        print(
+            f"❌ Invalid project name {project_name!r} – expected "
+            "[a-zA-Z][a-zA-Z0-9_-]*.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     project_dir = base / project_name
+    resolved_project_dir = project_dir.resolve()
+    if base != resolved_project_dir.parent and base not in resolved_project_dir.parents:
+        print(
+            f"❌ Refusing to scaffold outside base directory: {resolved_project_dir}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     if project_dir.exists():
         print(f"❌ Directory {project_dir} already exists – aborting.")
         sys.exit(1)

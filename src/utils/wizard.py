@@ -28,9 +28,12 @@ def _print_banner() -> None:
     print()
 
 
-def _is_valid_project_name(name: str) -> bool:
+def is_valid_project_name(name: str) -> bool:
     """Project names should be simple, filesystem-safe identifiers."""
     return bool(re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]*", name))
+
+
+_is_valid_project_name = is_valid_project_name
 
 
 def _is_valid_coverage(value: str) -> bool:
