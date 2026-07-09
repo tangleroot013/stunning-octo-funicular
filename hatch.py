@@ -33,6 +33,7 @@ def _valid_coverage_threshold(value: str) -> int:
 
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
+from src.utils.env_checker import check_environment, format_report
 from src.utils.wizard import collect_answers, DEFAULT_COVERAGE_THRESHOLD
 
 # ----------------------------------------------------------------------
@@ -183,28 +184,9 @@ PRE_COMMIT_HOOK_TEMPLATE = """#!/usr/bin/env bash
 
 set -e
 
-# 1️⃣ Secret detection (CRITICAL)
-if git diff --cached --name-only | grep -E '\\.py$|\\.env$|\\.yml$|\\.yaml$' | xargs grep -E -n '(ANTHROPIC_API_KEY|github_token|password|secret|DATABASE_URL)'; then
-  echo "QUACK! Secret detected in staged changes!"
-  exit 1
-fi
-
-# 2️⃣ Python syntax validation (HIGH)
 python_files=$(git diff --cached --name-only --diff-filter=ACMR | grep '\\.py$' || true)
-if [ -n "$python_files" ]; then
-  python3 -m py_compile $python_files
-fi
 
-# 3️⃣ Quality checks (MEDIUM/HIGH)
-if [ -n "$python_files" ]; then
-  {hooks}
-fi
-
-# 4️⃣ Trailing whitespace (WARNING)
-if git diff --cached --check | grep -q 'trailing whitespace'; then
-  echo "Trailing whitespace detected!"
-  exit 1
-fi
+{hooks}
 
 exit 0
 """
@@ -341,9 +323,7 @@ def install_global_template():
     template_dir.mkdir(parents=True, exist_ok=True)
 
     # Hook
-    hook_dir = template_dir / "hooks"
-    hook_dir.mkdir(parents=True, exist_ok=True)
-    write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK_TEMPLATE, mode="x")
+    create_git_hook(Path.home(), global_template=True)
 
     # Commit message template
     write_file(Path.home() / ".gitmessage", GITMESSAGE)
@@ -358,6 +338,13 @@ def install_global_template():
 # Main scaffolder logic
 # ----------------------------------------------------------------------
 def scaffold(project_name: str, base_path: str, template: str, coverage_threshold: int = DEFAULT_COVERAGE_THRESHOLD):
+    # Lightweight pre-flight check: warn, but don't block, if the host is missing tools.
+    passed, statuses = check_environment(include_optional=False)
+    if not passed:
+        print("⚠️  Environment pre-flight failed:", file=sys.stderr)
+        print(format_report(statuses, passed), file=sys.stderr)
+        print("Continuing anyway...", file=sys.stderr)
+
     base = Path(base_path).expanduser().resolve()
     project_dir = base / project_name
     if project_dir.exists():
@@ -482,6 +469,8 @@ def main():
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--sync-ignores", action="store_true",
                         help="Synchronize .claudeignore and .gitignore from settings.json")
+    parser.add_argument("--check-env", action="store_true",
+                        help="Run an environment pre-flight check and exit")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be written without modifying files")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -492,6 +481,11 @@ def main():
     if args.version:
         print(f"hatch.py {VERSION} ({CODENAME})")
         sys.exit(0)
+
+    if args.check_env:
+        passed, statuses = check_environment(include_optional=True)
+        print(format_report(statuses, passed))
+        sys.exit(0 if passed else 1)
 
     if args.sync_ignores:
         try:

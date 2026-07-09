@@ -176,7 +176,21 @@
     "shell_configs": [
       "~/.zshrc",
       "~/.bashrc"
-    ]
+    ],
+    "preflight_checks": {
+      "required": {
+        "python3": "Python interpreter",
+        "pip3": "Python package manager",
+        "git": "Version control",
+        "venv": "Python venv module"
+      },
+      "optional": {
+        "ruff": "Fast Python linter",
+        "black": "Python formatter",
+        "isort": "Import sorter",
+        "pytest": "Test runner"
+      }
+    }
   },
   "workspace": {
     "ignore_patterns": {
