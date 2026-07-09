@@ -185,6 +185,13 @@ def test_cli_coverage_threshold_is_used_in_scaffold(tmp_path, monkeypatch):
     assert "pytest --cov . --cov-fail-under=95" in workflow
 
 
+def test_cli_rejects_out_of_range_coverage_threshold(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["hatch.py", "--coverage-threshold", "200"])
+    with pytest.raises(SystemExit) as exc:
+        hatch.main()
+    assert exc.value.code == 2
+
+
 def test_scaffold_uses_coverage_threshold_in_workflow(tmp_path, monkeypatch):
     project_dir = tmp_path / "cov-test"
     monkeypatch.setattr(hatch, "init_git_repo", lambda p: None)

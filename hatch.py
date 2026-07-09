@@ -21,6 +21,16 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
 
+
+def _valid_coverage_threshold(value: str) -> int:
+    try:
+        ival = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"coverage threshold must be an integer, got {value!r}")
+    if not (0 <= ival <= 100):
+        raise argparse.ArgumentTypeError(f"coverage threshold must be 0-100, got {ival}")
+    return ival
+
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
 from src.utils.wizard import collect_answers, DEFAULT_COVERAGE_THRESHOLD
@@ -464,7 +474,8 @@ def main():
     parser.add_argument("-p", "--path", default=".", help="Base path where the project will be created")
     parser.add_argument("-t", "--template", choices=["cli", "web", "lib"], default="cli",
                         help="Template to use (default: cli)")
-    parser.add_argument("--coverage-threshold", type=int, default=DEFAULT_COVERAGE_THRESHOLD,
+    parser.add_argument("--coverage-threshold", type=_valid_coverage_threshold,
+                        default=DEFAULT_COVERAGE_THRESHOLD,
                         help="Minimum coverage percentage for generated CI (default: 85)")
     parser.add_argument("--setup-global", action="store_true",
                         help="Install global Git template & hooks for all future repos")

@@ -144,9 +144,12 @@ def collect_answers(defaults: Optional[dict] = None) -> dict:
         validator=_is_valid_path,
     )
 
+    coverage_default = defaults.get("coverage_threshold", DEFAULT_COVERAGE_THRESHOLD)
+    if not isinstance(coverage_default, int) or not (0 <= coverage_default <= 100):
+        coverage_default = DEFAULT_COVERAGE_THRESHOLD
     coverage = ask(
         "Coverage threshold (%)",
-        default=str(defaults.get("coverage_threshold", DEFAULT_COVERAGE_THRESHOLD)),
+        default=str(coverage_default),
         validator=_is_valid_coverage,
     )
 
