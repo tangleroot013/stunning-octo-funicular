@@ -18,7 +18,18 @@ import json
 import argparse
 import subprocess
 from pathlib import Path
+from typing import Optional
 from datetime import datetime, timezone
+
+
+def _valid_coverage_threshold(value: str) -> int:
+    try:
+        ival = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"coverage threshold must be an integer, got {value!r}")
+    if not (0 <= ival <= 100):
+        raise argparse.ArgumentTypeError(f"coverage threshold must be 0-100, got {ival}")
+    return ival
 
 from src.utils.config_loader import settings
 from src.utils.sync_ignores import sync_ignore_files, SyncIgnoresError
@@ -435,10 +446,10 @@ VERSION = "0.2.2"
 CODENAME = "Waddler OS Pro"
 
 
-def run_wizard() -> None:
-    """Launch the interactive scaffolding wizard."""
+def run_wizard(defaults: Optional[dict] = None) -> None:
+    """Launch the interactive scaffolding wizard with optional CLI defaults."""
     try:
-        answers = collect_answers()
+        answers = collect_answers(defaults=defaults)
     except (KeyboardInterrupt, EOFError):
         print("\nWizard cancelled.")
         sys.exit(0)
@@ -463,6 +474,9 @@ def main():
     parser.add_argument("-p", "--path", default=".", help="Base path where the project will be created")
     parser.add_argument("-t", "--template", choices=["cli", "web", "lib"], default="cli",
                         help="Template to use (default: cli)")
+    parser.add_argument("--coverage-threshold", type=_valid_coverage_threshold,
+                        default=DEFAULT_COVERAGE_THRESHOLD,
+                        help="Minimum coverage percentage for generated CI (default: 85)")
     parser.add_argument("--setup-global", action="store_true",
                         help="Install global Git template & hooks for all future repos")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
@@ -502,10 +516,20 @@ def main():
         sys.exit(0)
 
     if not args.project_name:
-        run_wizard()
+        run_wizard(defaults={
+            "template": args.template,
+            "base_path": args.path,
+            "coverage_threshold": args.coverage_threshold,
+            "setup_global": args.setup_global,
+        })
         return
 
-    scaffold(args.project_name, args.path, args.template)
+    scaffold(
+        args.project_name,
+        args.path,
+        args.template,
+        coverage_threshold=args.coverage_threshold,
+    )
 
 
 if __name__ == '__main__':

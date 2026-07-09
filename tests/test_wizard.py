@@ -108,7 +108,11 @@ def test_collect_answers(monkeypatch, tmp_path):
 
 
 def test_hatch_main_runs_wizard_when_no_args(monkeypatch, tmp_path):
-    def fake_collect():
+    seen_defaults = None
+
+    def fake_collect(defaults=None):
+        nonlocal seen_defaults
+        seen_defaults = defaults
         return {
             "project_name": "wizard-test",
             "template": "cli",
@@ -122,6 +126,70 @@ def test_hatch_main_runs_wizard_when_no_args(monkeypatch, tmp_path):
 
     with patch.object(sys, "argv", ["hatch.py"]):
         hatch.main()
+
+    assert seen_defaults == {
+        "template": "cli",
+        "base_path": ".",
+        "coverage_threshold": 85,
+        "setup_global": False,
+    }
+
+
+def test_hatch_main_forwards_cli_flags_to_wizard(monkeypatch, tmp_path):
+    seen_defaults = None
+
+    def fake_collect(defaults=None):
+        nonlocal seen_defaults
+        seen_defaults = defaults
+        return {
+            "project_name": "wizard-test",
+            "template": "web",
+            "base_path": str(tmp_path),
+            "coverage_threshold": 95,
+            "setup_global": True,
+        }
+
+    monkeypatch.setattr(hatch, "scaffold", lambda *args, **kwargs: tmp_path / args[0])
+    monkeypatch.setattr(hatch, "collect_answers", fake_collect)
+
+    with patch.object(
+        sys,
+        "argv",
+        ["hatch.py", "-t", "web", "-p", str(tmp_path), "--coverage-threshold", "95"],
+    ):
+        hatch.main()
+
+    assert seen_defaults == {
+        "template": "web",
+        "base_path": str(tmp_path),
+        "coverage_threshold": 95,
+        "setup_global": False,
+    }
+
+
+def test_cli_coverage_threshold_is_used_in_scaffold(tmp_path, monkeypatch):
+    project_dir = tmp_path / "cli-cov-test"
+    monkeypatch.setattr(hatch, "init_git_repo", lambda p: None)
+    monkeypatch.setattr(hatch, "create_git_hook", lambda p, **kw: None)
+    monkeypatch.setattr(hatch, "create_git_message", lambda p, **kw: None)
+    monkeypatch.setattr(hatch, "collect_answers", lambda defaults: {
+        "project_name": "cli-cov-test",
+        "template": "cli",
+        "base_path": str(tmp_path),
+        "coverage_threshold": 95,
+        "setup_global": False,
+    })
+    monkeypatch.setattr(sys, "argv", ["hatch.py", "--coverage-threshold", "95"])
+    hatch.main()
+    workflow = (project_dir / ".github" / "workflows" / "pipeline.yml").read_text()
+    assert "pytest --cov . --cov-fail-under=95" in workflow
+
+
+def test_cli_rejects_out_of_range_coverage_threshold(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["hatch.py", "--coverage-threshold", "200"])
+    with pytest.raises(SystemExit) as exc:
+        hatch.main()
+    assert exc.value.code == 2
 
 
 def test_scaffold_uses_coverage_threshold_in_workflow(tmp_path, monkeypatch):
