@@ -87,6 +87,10 @@ def test_cli_setup_global_installs_git_template(tmp_path, monkeypatch, capsys):
     assert (home / ".git-templates" / "hooks" / "pre-commit").exists()
     assert (home / ".gitmessage").exists()
 
+    hook_text = (home / ".git-templates" / "hooks" / "pre-commit").read_text()
+    assert "{hooks}" not in hook_text
+    assert "py_compile" in hook_text or "secret" in hook_text.lower()
+
 
 def test_cli_wizard_forwards_flags_to_scaffold(tmp_path, monkeypatch):
     captured = {}
