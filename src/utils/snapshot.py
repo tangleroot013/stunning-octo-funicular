@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import sys
 from typing import List
 
 from src.utils.config_loader import settings
@@ -55,8 +56,9 @@ def build_context_snapshot(root_dir: pathlib.Path | None = None) -> pathlib.Path
         rel = path.relative_to(root).as_posix()
         try:
             content = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            content = ""
+        except (UnicodeDecodeError, OSError) as exc:
+            print(f"Warning: skipping unreadable file {path}: {exc}", file=sys.stderr)
+            continue
 
         if len(content.encode("utf-8")) > max_bytes_per_file:
             content = content[:max_bytes_per_file] + "\n... [truncated]"

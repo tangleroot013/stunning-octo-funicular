@@ -1,5 +1,6 @@
 import fnmatch
 import pathlib
+import sys
 from typing import Any, Dict, List
 
 from src.utils.config_loader import settings
@@ -105,8 +106,9 @@ def build_llm_payload() -> Dict[str, Any]:
     for p in files:
         try:
             content = p.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            content = ""
+        except (UnicodeDecodeError, OSError) as exc:
+            print(f"Warning: skipping unreadable file {p}: {exc}", file=sys.stderr)
+            continue
         file_entries.append(
             {
                 "path": str(p.relative_to(WorkspaceFilter._repo_root)),
