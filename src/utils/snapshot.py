@@ -1,18 +1,36 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import pathlib
 from typing import List
 
 from src.utils.config_loader import settings
 
 
+def _glob_match(rel_parts: list[str], pat_parts: list[str]) -> bool:
+    """Match path parts against a glob pattern, where '**' matches zero or more segments."""
+    if not pat_parts:
+        return not rel_parts
+    if not rel_parts:
+        return all(p == "**" for p in pat_parts)
+    pat = pat_parts[0]
+    if pat == "**":
+        return _glob_match(rel_parts, pat_parts[1:]) or _glob_match(rel_parts[1:], pat_parts)
+    if not fnmatch.fnmatch(rel_parts[0], pat):
+        return False
+    return _glob_match(rel_parts[1:], pat_parts[1:])
+
+
 def _should_ignore(rel_str: str, pattern: str) -> bool:
-    """Match an exact file pattern or a directory prefix without over-matching."""
-    if pattern.endswith("/"):
-        prefix = pattern.rstrip("/")
-        return rel_str == prefix or rel_str.startswith(prefix + "/")
-    return rel_str == pattern
+    """Match a gitignore-style pattern against a relative file path."""
+    if "/" in pattern:
+        # Path patterns are relative to the repo root.
+        if pattern.endswith("/"):
+            pattern = pattern.rstrip("/") + "/**"
+        return _glob_match(rel_str.split("/"), pattern.split("/"))
+    # Patterns without a slash match the file name at any depth.
+    return fnmatch.fnmatch(rel_str.split("/")[-1], pattern)
 
 
 def _iter_project_files(root_dir: pathlib.Path) -> List[pathlib.Path]:
