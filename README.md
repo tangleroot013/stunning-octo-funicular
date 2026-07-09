@@ -1,159 +1,117 @@
-{
-  "project_metadata": {
-    "name": "God Mode Scaffolder",
-    "version": "0.2.2",
-    "codename": "Waddler OS Pro",
-    "developer": "Carter the Duck Developer",
-    "license": "MIT",
-    "intended_for": "bilbywilby",
-    "last_updated": "2026-07-08T17:25:00Z",
-    "description": "An AI-ready Python project bootstrapper creating production-ready scaffolding with security hooks, CI/CD pipelines, and token-optimized architectures for Claude and other LLM interfaces."
-  },
-  "core_philosophy": {
-    "cross_platform_reliability": "Pure Python implementation replacing brittle shell scripts, ensuring safety and standard execution across Chromebooks (Crostini), macOS, Linux, and Windows.",
-    "token_efficiency": "Strict enforcement of local runspaces and automatic `.claudeignore` injection to prevent AI tools from wasting expensive prompt context on build artifacts and system files.",
-    "automated_hygiene": "Zero-trust commit safety via global and local Git templates that actively scan for accidental secret leaks, broken syntax, and trailing whitespace errors."
-  },
-  "system_prerequisites": {
-    "python_version": ">=3.7",
-    "required_packages": [
-      "argparse",
-      "subprocess",
-      "pathlib",
-      "shutil"
-    ],
-    "external_tools": {
-      "git": "Required for repository initialization, configuration, and hook deployment.",
-      "python3-venv": "Required for creating virtual environments in generated scaffolds."
-    }
-  },
-  "architectural_components": {
-    "hatch_py": {
-      "purpose": "The central engine responsible for parsing arguments, creating clean directory structures, writing boilerplate code, and configuring Git structures.",
-      "entry_point": "hatch.py",
-      "cli_interface": {
-        "arguments": {
-          "project_name": "Optional. Name of the directory to be created for a new project.",
-          "base_path": "Optional. Custom parent directory for project generation (defaults to current working directory)."
-        },
-        "flags": {
-          "-t, --template": "Choices: ['cli', 'web', 'lib']. Configures directory layouts and standard boilerplates.",
-          "--setup-global": "Configures a system-wide Git template directory to automate hooks for all future projects."
-        }
-      }
-    }
-  },
-  "template_engine_details": {
-    "cli": {
-      "name": "Command Line Interface",
-      "primary_use": "Standard utility programs and scripts.",
-      "directories": ["src", "tests", "docs", "scripts", ".github/workflows"],
-      "files_generated": [
-        "src/main.py (argparse, logging boilerplate)",
-        "tests/test_main.py (basic placeholder test)"
-      ],
-      "extra_dependencies": []
-    },
-    "web": {
-      "name": "FastAPI Web Application",
-      "primary_use": "Asynchronous microservices, backend APIs, and web services.",
-      "directories": [
-        "src", "src/api", "src/core", "src/static",
-        "tests", "docs", "scripts", ".github/workflows"
-      ],
-      "files_generated": [
-        "src/main.py (FastAPI app router bootstrap)",
-        "src/api/router.py (base API endpoints blueprint)",
-        "tests/test_main.py (FastAPI TestClient integration check)"
-      ],
-      "extra_dependencies": [
-        "fastapi>=0.100.0",
-        "uvicorn[standard]>=0.22.0"
-      ]
-    },
-    "lib": {
-      "name": "Python Package/Library",
-      "primary_use": "Reusable utility code meant for distribution.",
-      "directories": ["src", "src/{package_name}", "tests", "docs", "scripts", ".github/workflows"],
-      "files_generated": [
-        "src/{package_name}/__init__.py (version & metadata declarations)",
-        "src/{package_name}/core.py (base math function logic placeholder)",
-        "tests/test_core.py (pytest core utility check)"
-      ],
-      "extra_dependencies": [
-        "setuptools>=68.0.0",
-        "wheel>=0.40.0"
-      ]
-    }
-  },
-  "security_and_quality_guardrails": {
-    "git_pre_commit_hooks": {
-      "location_local": "{project_name}/.git/hooks/pre-commit",
-      "location_global": "~/.git-templates/hooks/pre-commit",
-      "validations": [
-        {
-          "check_name": "Accidental Secret Detection",
-          "pattern": "(ANTHROPIC_API_KEY|github_token|password|secret|DATABASE_URL)",
-          "severity": "CRITICAL (Blocks commit)",
-          "error_msg": "QUACK! Secret detected in staged changes!"
-        },
-        {
-          "check_name": "Python Syntax Validation",
-          "command": "python3 -m py_compile",
-          "severity": "HIGH (Blocks commit)",
-          "error_msg": "Fails if syntax errors are present in any staged .py file."
-        },
-        {
-          "check_name": "Trailing Whitespace Prevention",
-          "pattern": "^\\\\+.*[[:space:]]$",
-          "severity": "WARNING (Blocks commit to ensure pristine git diffs)",
-          "error_msg": "Trailing whitespace detected!"
-        }
-      ]
-    },
-    "git_commit_template": {
-      "location_local": "{project_name}/.gitmessage",
-      "location_global": "~/.gitmessage",
-      "style_convention": "Conventional Commits (feat, fix, docs, style, refactor, perf, test, chore, ci)"
-    }
-  },
-  "deployment_and_installation_runbook": {
-    "installation_steps": [
-      "mkdir -p ~/.local/bin",
-      "cp hatch.py ~/.local/bin/hatch.py",
-      "chmod +x ~/.local/bin/hatch.py",
-      "grep -q 'alias hatch=' ~/.zshrc || echo \"alias hatch='python3 ~/.local/bin/hatch.py'\" >> ~/.zshrc",
-      "source ~/.zshrc"
-    ],
-    "configuration_step": "hatch --setup-global",
-    "verification_steps": [
-      {
-        "command": "hatch --help",
-        "expected_output": "Usage help output detailing templates and configuration options."
-      },
-      {
-        "command": "git config --global --get init.templateDir",
-        "expected_output": "/home/{username}/.git-templates"
-      }
-    ]
-  },
-  "troubleshooting_and_common_hurdles": [
-    {
-      "issue": "hatch command not found",
-      "resolution": "Verify ~/.local/bin is in your PATH, or that the alias inside your active shell profile (~/.zshrc or ~/.bashrc) was loaded correctly with 'source ~/.zshrc'."
-    },
-    {
-      "issue": "pre-commit hook failed during git commit",
-      "resolution": "Address the warning (e.g. remove the secret key or fix python syntax errors) and run 'git add' on the changes before attempting to commit again. For urgent, trusted bypasses only, use 'git commit --no-verify'."
-    }
-  ],
-  "future_roadmap_v0_3_0": {
-    "planned_additions": [
-      "Interactive command-line setup wizard",
-      "Node.js (npm/yarn) project framework templates",
-      "React Frontend SPA scaffolding structure",
-      "Docker Compose environment auto-generators",
-      "Terraform cloud platform template scripts"
-    ]
-  }
-}
+# God Mode Scaffolder (Waddler OS Pro)
+
+`hatch.py` is a pure-Python project bootstrapper that generates production-ready Python repositories with security hooks, CI pipelines, and token-optimized `.claudeignore` files built in.
+
+## Features
+
+- **Interactive or headless project creation**: run `hatch.py` with no arguments to launch the wizard, or pass a `project_name` to scaffold immediately.
+- **Three templates**:
+  - `cli` — command-line tools with `argparse` and smoke tests
+  - `web` — FastAPI service with `pydantic-settings` and `TestClient` tests
+  - `lib` — reusable Python package with `setuptools` build setup
+- **Security-first Git hooks**: every scaffold gets a pre-commit hook that scans for secrets, runs `py_compile`, and checks for trailing whitespace.
+- **Global Git templates**: `hatch.py --setup-global` installs hooks and a conventional-commit message template for all future repositories.
+- **Ignore-file synchronization**: `hatch.py --sync-ignores --dry-run` writes a `.claudeignore` tuned for LLM context windows and a `.gitignore` from `settings.json`.
+- **Snapshot generator**: `python src/utils/snapshot.py` builds a `project_snapshot.md` for LLM context, respecting ignore patterns and byte budgets.
+- **Settings-driven configuration**: `settings.json` controls templates, ignore patterns, byte budgets, personas, and CI hooks.
+
+## Requirements
+
+- Python 3.7+
+- `git`
+- `python3-venv` (for the generated virtual environment instructions)
+
+## Installation
+
+```bash
+mkdir -p ~/.local/bin
+cp hatch.py ~/.local/bin/hatch.py
+chmod +x ~/.local/bin/hatch.py
+grep -q "alias hatch=" ~/.zshrc || echo "alias hatch='python3 ~/.local/bin/hatch.py'" >> ~/.zshrc
+source ~/.zshrc
+```
+
+## Usage
+
+### Interactive wizard
+
+```bash
+python hatch.py
+```
+
+The wizard asks for the project name, template, base directory, coverage threshold, and whether to install the global Git template.
+
+### Direct scaffold
+
+```bash
+python hatch.py myproject --template web --path ./projects --coverage-threshold 90
+```
+
+### Install global Git hooks and commit message template
+
+```bash
+python hatch.py --setup-global
+```
+
+### Synchronize ignore files
+
+```bash
+python hatch.py --sync-ignores          # writes .claudeignore and .gitignore
+python hatch.py --sync-ignores --dry-run  # preview what would change
+```
+
+### Generate a context snapshot
+
+```bash
+python src/utils/snapshot.py --root .
+```
+
+## CLI reference
+
+| Argument / flag | Description |
+| --- | --- |
+| `project_name` | Optional. Name of the project directory to create. |
+| `-p, --path` | Base directory for the new project (default: current directory). |
+| `-t, --template` | Template to use: `cli`, `web`, or `lib` (default: `cli`). |
+| `--coverage-threshold` | Minimum coverage percentage rendered into the generated CI workflow (default: `85`). |
+| `--setup-global` | Install global Git templates and hooks and exit. |
+| `--sync-ignores` | Synchronize `.claudeignore` and `.gitignore` from `settings.json`. |
+| `--dry-run` | With `--sync-ignores`, show what would change without writing files. |
+| `--version` | Print the scaffolder version and exit. |
+
+## Development
+
+Run the test suite:
+
+```bash
+python -m pytest -q
+```
+
+For the scaffolder itself there is no separate `requirements.txt`; tests only need `pytest`.
+
+## Project layout
+
+```text
+hatch.py                    # CLI and scaffold engine
+src/
+  utils/
+    config_loader.py         # settings.json singleton
+    snapshot.py              # project_snapshot.md generator
+    sync_ignores.py          # .claudeignore / .gitignore sync
+    wizard.py                # interactive scaffolding wizard
+settings.json               # central configuration
+tests/                      # pytest regression suite
+```
+
+## Roadmap
+
+- [ ] Environment pre-flight checker ([PR #2](https://github.com/tangleroot013/stunning-octo-funicular/pull/2))
+- [ ] GitHub Actions CI workflow for this repository ([PR #3](https://github.com/tangleroot013/stunning-octo-funicular/pull/3))
+- [ ] Node.js / npm templates
+- [ ] React frontend SPA template
+- [ ] Docker Compose environment generators
+- [ ] Terraform cloud-platform templates
+
+## License
+
+MIT — by Carter the Duck Developer.
