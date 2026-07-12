@@ -30,10 +30,7 @@ def run_tests():
     if r.returncode != 0:
         (PROJ / ".last_test_ok").unlink(missing_ok=True)
         sys.exit("[halt] tests failing — fix before shipping")
-    (PROJ / ".last_test_ok").write_text(str(subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=PROJ, capture_output=True, text=True
-    ).stdout.strip() or "pending"))
-    print("[ok] all tests passed (marker written for pre-push hook)")
+    print("[ok] all tests passed")
 
 def check_dirty():
     print("\n=== 2/4 git status ===")
@@ -46,6 +43,14 @@ def commit_and_push(message):
     print("\n=== 3/4 stage + commit ===")
     run(["git", "add", "-A"])
     run(["git", "commit", "-m", message])
+
+    # Stamp the marker with the commit we JUST made, right before pushing —
+    # this closes the race where the hash changed between test-run and commit.
+    new_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=PROJ, capture_output=True, text=True
+    ).stdout.strip()
+    (PROJ / ".last_test_ok").write_text(new_head)
+    print(f"[marker] stamped .last_test_ok with {new_head}")
 
     print("\n=== 4/4 push ===")
     r = run(["git", "push"], check=False)
