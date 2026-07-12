@@ -28,8 +28,12 @@ def run_tests():
     print("\n=== 1/4 pytest (with coverage) ===")
     r = run([PY, "-m", "pytest", "-q", "--cov=src", "--cov-report=term-missing"], check=False)
     if r.returncode != 0:
+        (PROJ / ".last_test_ok").unlink(missing_ok=True)
         sys.exit("[halt] tests failing — fix before shipping")
-    print("[ok] all tests passed")
+    (PROJ / ".last_test_ok").write_text(str(subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=PROJ, capture_output=True, text=True
+    ).stdout.strip() or "pending"))
+    print("[ok] all tests passed (marker written for pre-push hook)")
 
 def check_dirty():
     print("\n=== 2/4 git status ===")
