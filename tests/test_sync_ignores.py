@@ -201,3 +201,143 @@ def test_hatch_sync_ignores_cli_dry_run(tmp_path):
     assert "Dry run" in result.stdout
     assert not (tmp_path / ".claudeignore").exists()
     assert not (tmp_path / ".gitignore").exists()
+
+from src.utils.sync_ignores import (_read_ignore_file, main)
+
+
+def test_resolve_root_fallback_when_no_git_dir_found(monkeypatch):
+    """Line 121: no .git in any parent -> falls back to parents[2]."""
+    fake_file = pathlib.Path("/fake/directory/tree/structure/file.py")
+    monkeypatch.setattr(sync_ignores, "__file__", str(fake_file))
+    res = _resolve_root(None)
+    assert res == pathlib.Path("/fake/directory")
+
+
+def test_read_ignore_file_oserror_raises_sync_error(monkeypatch, tmp_path):
+    """Lines 152-153: OSError on read is wrapped as SyncIgnoresError."""
+    fake_path = tmp_path / ".testignore"
+    fake_path.touch()
+
+    def mock_read_text(*args, **kwargs):
+        raise OSError("Read failure simulated")
+
+    monkeypatch.setattr(pathlib.Path, "read_text", mock_read_text)
+    with pytest.raises(SyncIgnoresError):
+        _read_ignore_file(fake_path)
+
+
+def test_write_ignore_file_merges_critical_entries_without_preserve(tmp_path):
+    """Line 197: preserve_existing=False on .gitignore still merges in
+    CRITICAL_GITIGNORE_ENTRIES."""
+    target = tmp_path / ".gitignore"
+    count = _write_ignore_file(target, ["*.log"], preserve_existing=False)
+    assert count > 1
+    content = target.read_text()
+    assert ".env" in content
+
+
+def test_write_ignore_file_oserror_raises_sync_error(monkeypatch, tmp_path):
+    """Lines 207-208: OSError on write is wrapped as SyncIgnoresError."""
+    def mock_write_text(*args, **kwargs):
+        raise OSError("Write protection simulated")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", mock_write_text)
+    with pytest.raises(SyncIgnoresError):
+        _write_ignore_file(tmp_path / ".gitignore", ["*.log"])
+
+
+def test_sync_ignore_files_returns_false_on_resolve_error(monkeypatch):
+    """Lines 260-261: _resolve_root raising is caught and reported."""
+    def mock_resolve(*args, **kwargs):
+        raise SyncIgnoresError("Simulated resolve error")
+
+    monkeypatch.setattr(sync_ignores, "_resolve_root", mock_resolve)
+    success, msg = sync_ignore_files()
+    assert not success
+    assert "Simulated resolve error" in msg
+
+
+def test_sync_ignore_files_returns_false_on_load_error(monkeypatch):
+    """Lines 265-266: _load_patterns raising is caught and reported."""
+    def mock_load():
+        raise SyncIgnoresError("Simulated load error")
+
+    monkeypatch.setattr(sync_ignores, "_load_patterns", mock_load)
+    success, msg = sync_ignore_files()
+    assert not success
+    assert "Simulated load error" in msg
+
+
+def test_sync_ignore_files_returns_false_when_no_patterns(monkeypatch):
+    """Line 269: both pattern lists empty -> explicit failure message."""
+    monkeypatch.setattr(sync_ignores, "_load_patterns", lambda: ([], []))
+    success, msg = sync_ignore_files()
+    assert not success
+    assert "No ignore patterns found" in msg
+
+
+def test_sync_ignore_files_dry_run_verbose_prints_summary(monkeypatch, capsys):
+    """Line 280: dry_run + verbose prints the summary before returning."""
+    monkeypatch.setattr(sync_ignores, "_load_patterns", lambda: (["a"], ["b"]))
+    success, msg = sync_ignore_files(dry_run=True, verbose=True)
+    assert success
+    assert "Dry run:" in capsys.readouterr().out
+
+
+def test_sync_ignore_files_returns_false_on_write_error(monkeypatch):
+    """Lines 290-291: _write_ignore_file raising is caught and reported."""
+    def mock_write(*args, **kwargs):
+        raise SyncIgnoresError("Simulated write error")
+
+    monkeypatch.setattr(sync_ignores, "_write_ignore_file", mock_write)
+    success, msg = sync_ignore_files()
+    assert not success
+    assert "Simulated write error" in msg
+
+
+def test_main_prints_message_and_returns_zero_on_success(monkeypatch, capsys):
+    """Lines 308-325: happy-path CLI invocation."""
+    monkeypatch.setattr(sync_ignores, "sync_ignore_files", lambda **k: (True, "Synced!"))
+    assert main([]) == 0
+    assert "Synced!" in capsys.readouterr().out
+
+
+def test_main_returns_one_on_failure(monkeypatch, capsys):
+    """Lines 308-325: failure path returns exit code 1."""
+    monkeypatch.setattr(sync_ignores, "sync_ignore_files", lambda **k: (False, "Failed!"))
+    assert main([]) == 1
+    assert "Failed!" in capsys.readouterr().out
+
+
+def test_main_root_flag_missing_path_prints_error(capsys):
+    """Lines 313-319: --root with no following path is a usage error."""
+    assert main(["--root"]) == 1
+    assert "Error: --root requires a path" in capsys.readouterr().err
+
+
+def test_main_root_flag_resolves_given_path(monkeypatch, tmp_path):
+    """Lines 313-319: --root <path> is parsed and passed through resolved."""
+    called = {}
+
+    def mock_sync(root_dir, verbose, dry_run):
+        called["root_dir"] = root_dir
+        return True, "Done"
+
+    monkeypatch.setattr(sync_ignores, "sync_ignore_files", mock_sync)
+    assert main(["--root", str(tmp_path)]) == 0
+    assert called["root_dir"] == tmp_path.resolve()
+
+
+def test_main_verbose_and_dry_run_flags_parsed(monkeypatch):
+    """Lines 308-312: -v/--verbose and --dry-run flags are detected."""
+    captured = {}
+
+    def mock_sync(root_dir, verbose, dry_run):
+        captured["verbose"] = verbose
+        captured["dry_run"] = dry_run
+        return True, "ok"
+
+    monkeypatch.setattr(sync_ignores, "sync_ignore_files", mock_sync)
+    main(["--verbose", "--dry-run"])
+    assert captured["verbose"] is True
+    assert captured["dry_run"] is True

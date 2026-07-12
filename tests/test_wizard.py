@@ -210,3 +210,35 @@ def test_scaffold_defaults_to_85_coverage_threshold(tmp_path, monkeypatch):
     hatch.scaffold("cov-default", str(tmp_path), "cli")
     workflow = (project_dir / ".github" / "workflows" / "pipeline.yml").read_text()
     assert "pytest --cov . --cov-fail-under=85" in workflow
+
+from src.utils.wizard import (DEFAULT_COVERAGE_THRESHOLD)
+
+
+def test_ask_loops_when_empty_and_no_default(monkeypatch):
+    """Line 64: empty input with no default re-prompts instead of returning."""
+    responses = iter(["", "", "final_answer"])
+    monkeypatch.setattr("builtins.input", lambda: next(responses))
+    result = ask("Question")
+    assert result == "final_answer"
+
+
+def test_yes_no_returns_true_on_affirmative_variants(monkeypatch):
+    """Line 113: 'y'/'yes'/'true'/'1' all resolve to True."""
+    monkeypatch.setattr("builtins.input", lambda: "yes")
+    assert yes_no("Proceed?") is True
+
+
+def test_yes_no_reprompts_on_invalid_input(monkeypatch):
+    """Line 116: unrecognized input prints an error and loops."""
+    responses = iter(["maybe", "y"])
+    monkeypatch.setattr("builtins.input", lambda: next(responses))
+    assert yes_no("Proceed?") is True
+
+
+def test_collect_answers_resets_invalid_coverage_default(monkeypatch):
+    """Line 149: an out-of-range coverage_threshold default falls back to
+    DEFAULT_COVERAGE_THRESHOLD instead of being used as-is."""
+    inputs = iter(["myproject", "", ".", "", ""])
+    monkeypatch.setattr("builtins.input", lambda: next(inputs))
+    answers = collect_answers(defaults={"coverage_threshold": 500})
+    assert answers["coverage_threshold"] == DEFAULT_COVERAGE_THRESHOLD
