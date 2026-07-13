@@ -134,7 +134,7 @@ class TestHatchMain:
         _hp = pathlib.Path(__file__).parent.parent
         if str(_hp) not in _sys.path:
             _sys.path.insert(0, str(_hp))
-        import hatch
+        from src import hatch
         monkeypatch.setattr(_sys, "argv", ["hatch.py"])
         inputs = iter(["my-proj", "1", ".", "85", "n"])
         monkeypatch.setattr("builtins.input", lambda: next(inputs))
@@ -149,7 +149,7 @@ class TestHatchMain:
         _hp = pathlib.Path(__file__).parent.parent
         if str(_hp) not in _sys.path:
             _sys.path.insert(0, str(_hp))
-        import hatch
+        from src import hatch
         monkeypatch.setattr(
             _sys, "argv",
             ["hatch.py", "my-cli-proj", "--template", "web", "--coverage", "95"],
@@ -167,7 +167,7 @@ class TestHatchMain:
         _hp = pathlib.Path(__file__).parent.parent
         if str(_hp) not in _sys.path:
             _sys.path.insert(0, str(_hp))
-        import hatch
+        from src import hatch
         monkeypatch.setattr(
             _sys, "argv",
             ["hatch.py", "proj", "--coverage", "75"],
@@ -182,7 +182,7 @@ class TestHatchMain:
         _hp = pathlib.Path(__file__).parent.parent
         if str(_hp) not in _sys.path:
             _sys.path.insert(0, str(_hp))
-        import hatch
+        from src import hatch
         monkeypatch.setattr(
             _sys, "argv",
             ["hatch.py", "proj", "--coverage", "92"],
@@ -197,7 +197,7 @@ class TestHatchMain:
         _hp = pathlib.Path(__file__).parent.parent
         if str(_hp) not in _sys.path:
             _sys.path.insert(0, str(_hp))
-        import hatch
+        from src import hatch
         monkeypatch.setattr(_sys, "argv", ["hatch.py", "proj"])
         called = []
         monkeypatch.setattr(hatch, "scaffold", lambda *args, **kw: called.append(kw))

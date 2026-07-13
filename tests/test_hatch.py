@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import hatch
+from src import hatch
 from src.utils.ai_collab import build_llm_payload
 from src.utils.config_loader import Settings
 from src.utils.snapshot import build_context_snapshot
