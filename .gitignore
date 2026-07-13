@@ -34,3 +34,4 @@ htmlcov/
 node_modules/
 .last_test_ok
 .last_cov_score
+.last_runtime
