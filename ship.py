@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -650,6 +651,9 @@ def main():
 
     skip_set = {s.strip() for s in args.skip.split(",") if s.strip()}
 
+    if not _validate_commit_message(args.message):
+        return 1
+
     if args.format and not DRY_RUN:
         _run("black .", check=False)
         _run("isort .", check=False)
@@ -677,15 +681,32 @@ def main():
         (6, "coverage_floor", stage_6_coverage_floor),
         (7, "git_status", stage_7_git_status),
     ]
+
+    report = {
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "commit_message": args.message,
+        "dry_run": DRY_RUN,
+        "stages": [],
+    }
+
     for idx, name, stage in stages:
         if str(idx) in skip_set or name in skip_set:
+            report["stages"].append({"name": name, "passed": None, "skipped": True, "duration_sec": 0})
             _warn(f"skipped stage {idx} ({name})")
             continue
         spinner(f"running {stage.__name__}...")
-        if not stage():
+        t0 = time.time()
+        success = stage()
+        elapsed = round(time.time() - t0, 3)
+        report["stages"].append({"name": name, "passed": success, "skipped": False, "duration_sec": elapsed})
+        if not success:
             if CONFIG.get("rollback_on_failure"):
                 _run("git reset --hard HEAD")
                 _info("rolled back to HEAD")
+            report["status"] = "failed"
+            report["failed_stage"] = name
+            report["finished_at"] = datetime.now(timezone.utc).isoformat()
+            Path("ship-report.json").write_text(json.dumps(report, indent=2))
             notify("ship.py", f"Pipeline failed at {stage.__name__}")
             return 1
 
@@ -698,9 +719,20 @@ def main():
     if not _validate_commit_message(args.message):
         return 1
 
-    if not stage_8_commit_push(args.message):
+    stage8_t0 = time.time()
+    stage8_ok = stage_8_commit_push(args.message)
+    report["stages"].append({"name": "commit_push", "passed": stage8_ok, "skipped": False, "duration_sec": round(time.time() - stage8_t0, 3)})
+    if not stage8_ok:
+        report["status"] = "failed"
+        report["failed_stage"] = "commit_push"
+        report["finished_at"] = datetime.now(timezone.utc).isoformat()
+        Path("ship-report.json").write_text(json.dumps(report, indent=2))
         notify("ship.py", "Pipeline failed at commit/push")
         return 1
+
+    report["status"] = "passed"
+    report["finished_at"] = datetime.now(timezone.utc).isoformat()
+    Path("ship-report.json").write_text(json.dumps(report, indent=2))
 
     print("\n=== cleanup ===")
     for f in (".coverage", ".pytest_cache"):
