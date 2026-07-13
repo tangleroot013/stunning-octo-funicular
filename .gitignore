@@ -35,3 +35,7 @@ node_modules/
 .last_test_ok
 .last_cov_score
 .last_runtime
+ship-report.json
+coverage.json
+audit.json
+type_check.json
