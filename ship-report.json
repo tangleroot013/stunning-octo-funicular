@@ -1,5 +1,5 @@
 {
-  "started_at": "2026-07-13T10:56:03.902507+00:00",
+  "started_at": "2026-07-13T11:08:29.968776+00:00",
   "commit_message": "fix(ship): fail-fast commit gate + wire ship-report.json",
   "dry_run": true,
   "stages": [
@@ -13,19 +13,19 @@
       "name": "preflight",
       "passed": true,
       "skipped": false,
-      "duration_sec": 0.213
+      "duration_sec": 0.059
     },
     {
       "name": "credential_scan",
       "passed": true,
       "skipped": false,
-      "duration_sec": 0.011
+      "duration_sec": 0.021
     },
     {
       "name": "tech_debt",
       "passed": true,
       "skipped": false,
-      "duration_sec": 0.038
+      "duration_sec": 0.002
     },
     {
       "name": "impacted_tests",
@@ -59,5 +59,5 @@
     }
   ],
   "status": "passed",
-  "finished_at": "2026-07-13T10:56:06.033054+00:00"
+  "finished_at": "2026-07-13T11:08:31.891223+00:00"
 }
