@@ -458,9 +458,9 @@ def run_wizard(defaults: Optional[dict] = None) -> None:
         install_global_template()
 
     scaffold(
-        answers["project_name"],
-        answers["base_path"],
-        answers["template"],
+        project_name=answers["project_name"],
+        base_path=answers["base_path"],
+        template=answers["template"],
         coverage_threshold=answers["coverage_threshold"],
     )
 
@@ -525,9 +525,9 @@ def main():
         return
 
     scaffold(
-        args.project_name,
-        args.path,
-        args.template,
+        project_name=args.project_name,
+        base_path=args.path,
+        template=args.template,
         coverage_threshold=args.coverage_threshold,
     )
 
