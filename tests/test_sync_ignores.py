@@ -168,7 +168,8 @@ def test_hatch_sync_ignores_cli(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            "src/hatch.py",
+            "-m",
+                "src.hatch",
             "--sync-ignores",
             "--path",
             str(tmp_path),
@@ -187,7 +188,8 @@ def test_hatch_sync_ignores_cli_dry_run(tmp_path):
     result = subprocess.run(
         [
             sys.executable,
-            "src/hatch.py",
+            "-m",
+                "src.hatch",
             "--sync-ignores",
             "--path",
             str(tmp_path),
