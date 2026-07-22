@@ -1,7 +1,7 @@
 ast_serialize==0.6.0
 boolean.py==5.0
 CacheControl==0.14.4
-certifi==2026.6.17
+certifi==2026.7.22
 charset-normalizer==3.4.9
 coverage==7.15.0
 cyclonedx-python-lib==11.11.0
