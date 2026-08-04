@@ -5,18 +5,24 @@ policies:
   god_stack:
     allowed_args: ['--exec']
     timeout_seconds: 180
+    allowed_commands: ['pytest', 'echo', 'ls']
   metaclean:
     allowed_args: ['--exec']
     timeout_seconds: 120
+    allowed_commands: ['pytest', 'echo', 'ls']
   my-web-api:
     allowed_args: ['--exec']
     timeout_seconds: 120
+    allowed_commands: ['pytest', 'echo', 'ls']
   penguin-diag:
     allowed_args: ['--exec']
     timeout_seconds: 90
+    allowed_commands: ['pytest', 'echo', 'ls']
   development:
     allowed_args: ['--exec']
     timeout_seconds: 120
+    allowed_commands: ['pytest', 'echo', 'ls']
   scripts:
     allowed_args: ['--exec']
     timeout_seconds: 60
+    allowed_commands: ['echo', 'ls']

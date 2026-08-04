@@ -11,8 +11,58 @@ from typing import List, Tuple, Optional
 import time
 
 
+def _command_is_allowed(cmd, allowed_patterns):
+    """Return True if the command (list or str) matches any allowed pattern."""
+    s = cmd
+    if isinstance(cmd, (list, tuple)):
+        try:
+            s = " ".join(str(x) for x in cmd)
+        except Exception:
+            s = str(cmd)
+    for p in (allowed_patterns or []):
+        # simple containment check for now
+        if p and p in s:
+            return True
+    return False
+
+
 def _target_run(adapter, args: List[str], q: Queue):
     try:
+        # Load per-adapter policy for allowed_commands if available
+        allowed_patterns = None
+        try:
+            from .config import get_policy
+            allowed_patterns = get_policy(getattr(adapter, 'name', '')).get('allowed_commands')
+        except Exception:
+            allowed_patterns = None
+
+        # Monkeypatch subprocess.run, subprocess.Popen and os.system to enforce allowed commands
+        import subprocess as _sub
+        import os as _os
+        _orig_run = _sub.run
+        _orig_popen = _sub.Popen
+        _orig_system = _os.system
+
+        def _guarded_run(cmd, *a, **kw):
+            if allowed_patterns is not None and not _command_is_allowed(cmd, allowed_patterns):
+                raise RuntimeError(f"disallowed subprocess command: {cmd}")
+            return _orig_run(cmd, *a, **kw)
+
+        class _GuardedPopen(_orig_popen):
+            def __init__(self, cmd, *a, **kw):
+                if allowed_patterns is not None and not _command_is_allowed(cmd, allowed_patterns):
+                    raise RuntimeError(f"disallowed subprocess command: {cmd}")
+                super().__init__(cmd, *a, **kw)
+
+        def _guarded_system(cmd):
+            if allowed_patterns is not None and not _command_is_allowed(cmd, allowed_patterns):
+                raise RuntimeError(f"disallowed os.system command: {cmd}")
+            return _orig_system(cmd)
+
+        _sub.run = _guarded_run
+        _sub.Popen = _GuardedPopen
+        _os.system = _guarded_system
+
         rc = adapter.run(args)
         q.put((int(rc), None))
     except Exception as exc:
