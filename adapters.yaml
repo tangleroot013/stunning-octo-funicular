@@ -1,0 +1,22 @@
+policies:
+  default:
+    allowed_args: ['--exec']
+    timeout_seconds: 60
+  god_stack:
+    allowed_args: ['--exec']
+    timeout_seconds: 180
+  metaclean:
+    allowed_args: ['--exec']
+    timeout_seconds: 120
+  my-web-api:
+    allowed_args: ['--exec']
+    timeout_seconds: 120
+  penguin-diag:
+    allowed_args: ['--exec']
+    timeout_seconds: 90
+  development:
+    allowed_args: ['--exec']
+    timeout_seconds: 120
+  scripts:
+    allowed_args: ['--exec']
+    timeout_seconds: 60

@@ -539,6 +539,8 @@ def main():
                         help="Run a discovered adapter by name (dry-run unless --plugins-exec provided)")
     parser.add_argument("--plugins-exec", action="store_true",
                         help="When running an adapter, actually execute its command (unsafe)")
+    parser.add_argument("--plugins-scan-paths", metavar="PATHS",
+                        help="Colon-separated list of filesystem paths to scan for stunning_octo_adapter.py modules")
 
     args = parser.parse_args()
 
@@ -561,6 +563,17 @@ def main():
 
     if args.plugins_run:
         adapters = discover_adapters()
+        # optionally scan additional paths supplied via env or CLI
+        scan_paths = []
+        env_paths = os.environ.get("STUNNING_PLUGIN_PATHS")
+        if env_paths:
+            scan_paths.extend([p for p in env_paths.split(os.pathsep) if p])
+        # if CLI provided extra paths, they come via --plugins-scan-paths
+        if hasattr(args, "plugins_scan_paths") and args.plugins_scan_paths:
+            scan_paths.extend([p for p in args.plugins_scan_paths.split(os.pathsep) if p])
+        if scan_paths:
+            adapters.extend(discover_adapters_in_paths(scan_paths))
+
         match = None
         for a in adapters:
             if a.name == args.plugins_run:
@@ -572,8 +585,16 @@ def main():
         plugin_args = []
         if args.plugins_exec:
             plugin_args.append("--exec")
-        rc = match.run(plugin_args)
-        sys.exit(rc)
+        # Use the safe runner to execute with policy enforcement
+        from src.plugins import run_adapter
+        exit_code, timed_out, err = run_adapter(match, plugin_args, timeout_seconds=120, allowed_args=["--exec"])
+        if timed_out:
+            print(f"Adapter {match.name} timed out")
+            sys.exit(124)
+        if err:
+            print(f"Adapter error: {err}")
+            sys.exit(exit_code or 1)
+        sys.exit(exit_code)
 
     if args.sync_ignores:
         try:
