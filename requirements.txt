@@ -7,7 +7,6 @@ coverage==7.15.0
 cyclonedx-python-lib==11.11.0
 defusedxml==0.7.1
 filelock==3.29.7
--e git+https://github.com/tangleroot013/stunning-octo-funicular.git@688f62f88d08b8f66b3a461b8ac421b2067a29b8#egg=god_mode_scaffolder
 idna==3.18
 iniconfig==2.3.0
 librt==0.13.0

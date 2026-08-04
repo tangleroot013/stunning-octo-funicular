@@ -273,16 +273,20 @@ def render_template(content, **ctx):
     return content
 
 
-def write_file(path: Path, content: str, mode: str = "w"):
+def write_file(path: Path, content: str, mode: str = "w", dry_run: bool = False):
+    if dry_run:
+        print(f"[dry-run] would write {path}")
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     if mode == "x":
         path.chmod(0o755)
 
 
-def create_git_hook(project_path: Path, global_template: bool = False):
+def create_git_hook(project_path: Path, global_template: bool = False, dry_run: bool = False):
     hook_dir = (project_path / ".git" / "hooks") if not global_template else Path.home() / ".git-templates" / "hooks"
-    hook_dir.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        hook_dir.mkdir(parents=True, exist_ok=True)
     hook_path = hook_dir / "pre-commit"
     hooks = settings.get("ci.pre_commit.hooks", [])
     hook_commands = []
@@ -298,14 +302,17 @@ def create_git_hook(project_path: Path, global_template: bool = False):
             hook_commands.append('    python3 -m py_compile $python_files')
             hook_commands.append('  fi')
         elif hook == "ruff":
+            hook_commands.append('  python_files=${python_files:-$(git diff --cached --name-only --diff-filter=ACMR | grep \'\\.py$\' || true)}')
             hook_commands.append('  if [ -n "$python_files" ]; then')
             hook_commands.append('    ruff check --fix $python_files')
             hook_commands.append('  fi')
         elif hook == "black":
+            hook_commands.append('  python_files=${python_files:-$(git diff --cached --name-only --diff-filter=ACMR | grep \'\\.py$\' || true)}')
             hook_commands.append('  if [ -n "$python_files" ]; then')
             hook_commands.append('    black --check $python_files')
             hook_commands.append('  fi')
         elif hook == "isort":
+            hook_commands.append('  python_files=${python_files:-$(git diff --cached --name-only --diff-filter=ACMR | grep \'\\.py$\' || true)}')
             hook_commands.append('  if [ -n "$python_files" ]; then')
             hook_commands.append('    isort --check-only $python_files')
             hook_commands.append('  fi')
@@ -317,12 +324,12 @@ def create_git_hook(project_path: Path, global_template: bool = False):
 
     hook_body = "\n".join(hook_commands)
     hook_content = PRE_COMMIT_HOOK_TEMPLATE.replace("{hooks}", hook_body)
-    write_file(hook_path, hook_content, mode="x")
+    write_file(hook_path, hook_content, mode="x", dry_run=dry_run)
 
 
-def create_git_message(project_path: Path, global_template: bool = False):
+def create_git_message(project_path: Path, global_template: bool = False, dry_run: bool = False):
     target = (project_path / ".gitmessage") if not global_template else Path.home() / ".gitmessage"
-    write_file(target, GITMESSAGE)
+    write_file(target, GITMESSAGE, dry_run=dry_run)
 
 
 def init_git_repo(project_path: Path):
@@ -336,28 +343,31 @@ def init_git_repo(project_path: Path):
     )
 
 
-def install_global_template():
+def install_global_template(dry_run: bool = False):
     template_dir = Path.home() / ".git-templates"
-    template_dir.mkdir(parents=True, exist_ok=True)
-
-    # Hook
-    hook_dir = template_dir / "hooks"
-    hook_dir.mkdir(parents=True, exist_ok=True)
-    write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK_TEMPLATE, mode="x")
-
-    # Commit message template
-    write_file(Path.home() / ".gitmessage", GITMESSAGE)
-
-    # Register with Git
-    subprocess.run(["git", "config", "--global", "init.templateDir", str(template_dir)],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    print("✅ Global Git template installed at:", template_dir)
+    if not dry_run:
+        template_dir.mkdir(parents=True, exist_ok=True)
+        hook_dir = template_dir / "hooks"
+        hook_dir.mkdir(parents=True, exist_ok=True)
+        write_file(hook_dir / "pre-commit", PRE_COMMIT_HOOK_TEMPLATE, mode="x")
+        write_file(Path.home() / ".gitmessage", GITMESSAGE)
+        subprocess.run(["git", "config", "--global", "init.templateDir", str(template_dir)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("✅ Global Git template installed at:", template_dir)
+    else:
+        print(f"[dry-run] would install global Git template to {template_dir}")
 
 # ----------------------------------------------------------------------
 # Main scaffolder logic
 # ----------------------------------------------------------------------
-def scaffold(project_name: str, base_path: str, template: str, coverage_threshold: int = DEFAULT_COVERAGE_THRESHOLD):
+def scaffold(
+    project_name: str,
+    base_path: str,
+    template: str,
+    coverage_threshold: int = DEFAULT_COVERAGE_THRESHOLD,
+    dry_run: bool = False,
+    verbose: bool = False,
+):
     base = Path(base_path).expanduser().resolve()
     project_dir = base / project_name
     if project_dir.exists():
@@ -366,21 +376,33 @@ def scaffold(project_name: str, base_path: str, template: str, coverage_threshol
 
     tmpl = TEMPLATES.get(template, TEMPLATES["default"])
 
+    if dry_run:
+        print(f"[dry-run] would create project at {project_dir}")
+    if verbose:
+        print(f"Using template: {template}")
+        print(f"Writing project files to: {project_dir}")
+
     # ------------------------------------------------------------------
     # 1️⃣ Create directories
     # ------------------------------------------------------------------
     for d in tmpl["dirs"]:
         d = d.replace("{package_name}", project_name.replace("-", "_"))
-        (project_dir / d).mkdir(parents=True, exist_ok=True)
+        target_dir = project_dir / d
+        if dry_run:
+            print(f"[dry-run] would create directory: {target_dir}")
+        else:
+            target_dir.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # 2️⃣ Populate ignore files from settings, then static files
     # ------------------------------------------------------------------
-    sync_ok, sync_msg = sync_ignore_files(root_dir=project_dir, verbose=False)
+    sync_ok, sync_msg = sync_ignore_files(root_dir=project_dir, verbose=verbose)
     if not sync_ok:
         print(f"⚠️  Could not synchronize ignore files: {sync_msg}", file=sys.stderr)
 
-    write_file(project_dir / "README.md", f"""# {project_name}
+    write_file(
+        project_dir / "README.md",
+        f"""# {project_name}
 Version: {VERSION}
 Codename: {CODENAME}
 Generated on: {datetime.now(timezone.utc).isoformat()} UTC
@@ -392,10 +414,16 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-""")
+""",
+        dry_run=dry_run,
+    )
 
     reqs = tmpl.get("extra_deps", [])
-    write_file(project_dir / "requirements.txt", "\n".join(reqs) + "\n")
+    write_file(
+        project_dir / "requirements.txt",
+        "\n".join(reqs) + "\n",
+        dry_run=dry_run,
+    )
 
     workflow_paths = [".github/workflows/pipeline.yml"]
     configured_workflow = settings.get("ci.pipeline_file", ".github/workflows/pipeline.yml")
@@ -404,13 +432,17 @@ pip install -r requirements.txt
 
     for workflow_rel_path in workflow_paths:
         workflow_file = project_dir / workflow_rel_path
-        workflow_file.parent.mkdir(parents=True, exist_ok=True)
+        if dry_run:
+            print(f"[dry-run] would create workflow file: {workflow_file}")
+        else:
+            workflow_file.parent.mkdir(parents=True, exist_ok=True)
         write_file(
             workflow_file,
             render_template(
                 WORKFLOW_YAML_TEMPLATE,
                 coverage_threshold=str(coverage_threshold),
             ),
+            dry_run=dry_run,
         )
 
     # ------------------------------------------------------------------
@@ -418,20 +450,27 @@ pip install -r requirements.txt
     # ------------------------------------------------------------------
     for rel_path, content in tmpl["files"].items():
         rel_path = rel_path.replace("{package_name}", project_name.replace("-", "_"))
-        filled = render_template(content,
-                                 project_name=project_name,
-                                 version=VERSION,
-                                 package_name=project_name.replace("-", "_"))
-        write_file(project_dir / rel_path, filled)
+        filled = render_template(
+            content,
+            project_name=project_name,
+            version=VERSION,
+            package_name=project_name.replace("-", "_"),
+        )
+        write_file(project_dir / rel_path, filled, dry_run=dry_run)
 
     # ------------------------------------------------------------------
     # 4️⃣ Git init + hooks
     # ------------------------------------------------------------------
-    init_git_repo(project_dir)
-    create_git_hook(project_dir, global_template=False)
-    create_git_message(project_dir, global_template=False)
+    if dry_run:
+        print(f"[dry-run] would initialize git repository and create hooks at {project_dir}")
+    else:
+        init_git_repo(project_dir)
+        create_git_hook(project_dir, global_template=False, dry_run=False)
+        create_git_message(project_dir, global_template=False, dry_run=False)
 
     print(f"✅ Project {project_name} created at {project_dir}")
+    if dry_run:
+        print("[dry-run] no files were written.")
     print("\n🚀 Next steps:")
     print(f"   cd {project_name}")
     print("   source venv/bin/activate   # if you created a venv")
@@ -448,6 +487,7 @@ CODENAME = "Waddler OS Pro"
 
 def run_wizard(defaults: Optional[dict] = None) -> None:
     """Launch the interactive scaffolding wizard with optional CLI defaults."""
+    defaults = defaults or {}
     try:
         answers = collect_answers(defaults=defaults)
     except (KeyboardInterrupt, EOFError):
@@ -455,13 +495,18 @@ def run_wizard(defaults: Optional[dict] = None) -> None:
         sys.exit(0)
 
     if answers.get("setup_global"):
-        install_global_template()
+        if defaults.get("dry_run", False):
+            print("[dry-run] would install global Git templates and hooks")
+        else:
+            install_global_template()
 
     scaffold(
         project_name=answers["project_name"],
         base_path=answers["base_path"],
         template=answers["template"],
         coverage_threshold=answers["coverage_threshold"],
+        dry_run=defaults.get("dry_run", False),
+        verbose=defaults.get("verbose", False),
     )
 
 
@@ -487,11 +532,48 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Print detailed progress")
 
+    # Plugin/adapter helpers
+    parser.add_argument("--plugins-list", action="store_true",
+                        help="List discovered repository adapters")
+    parser.add_argument("--plugins-run", metavar="NAME",
+                        help="Run a discovered adapter by name (dry-run unless --plugins-exec provided)")
+    parser.add_argument("--plugins-exec", action="store_true",
+                        help="When running an adapter, actually execute its command (unsafe)")
+
     args = parser.parse_args()
 
     if args.version:
         print(f"hatch.py {VERSION} ({CODENAME})")
         sys.exit(0)
+
+    # Handle plugin discovery/run before other flow
+    from src.plugins.discover import discover_adapters
+
+    if args.plugins_list:
+        adapters = discover_adapters()
+        if not adapters:
+            print("No adapters discovered.")
+            sys.exit(0)
+        print("Discovered adapters:")
+        for a in adapters:
+            print(f" - {a.name}: {getattr(a, 'description', '')}")
+        sys.exit(0)
+
+    if args.plugins_run:
+        adapters = discover_adapters()
+        match = None
+        for a in adapters:
+            if a.name == args.plugins_run:
+                match = a
+                break
+        if match is None:
+            print(f"Adapter named {args.plugins_run!r} not found.")
+            sys.exit(2)
+        plugin_args = []
+        if args.plugins_exec:
+            plugin_args.append("--exec")
+        rc = match.run(plugin_args)
+        sys.exit(rc)
 
     if args.sync_ignores:
         try:
@@ -511,8 +593,11 @@ def main():
             print(f"✗ {message}", file=sys.stderr)
             sys.exit(1)
 
-    if args.setup_global:
-        install_global_template()
+    if args.setup_global and not args.project_name:
+        if args.dry_run:
+            print("[dry-run] would install global Git templates and hooks")
+        else:
+            install_global_template()
         sys.exit(0)
 
     if not args.project_name:
@@ -521,14 +606,24 @@ def main():
             "base_path": args.path,
             "coverage_threshold": args.coverage_threshold,
             "setup_global": args.setup_global,
+            "dry_run": args.dry_run,
+            "verbose": args.verbose,
         })
         return
+
+    if args.setup_global:
+        if args.dry_run:
+            print("[dry-run] would install global Git templates and hooks")
+        else:
+            install_global_template()
 
     scaffold(
         project_name=args.project_name,
         base_path=args.path,
         template=args.template,
         coverage_threshold=args.coverage_threshold,
+        dry_run=args.dry_run,
+        verbose=args.verbose,
     )
 
 

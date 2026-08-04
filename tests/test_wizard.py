@@ -1,6 +1,6 @@
 import sys
 import pytest
-from utils.wizard import (
+from src.utils.wizard import (
     ask,
     choose,
     yes_no,

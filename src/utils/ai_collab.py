@@ -3,6 +3,22 @@ import pathlib
 from typing import Any, Dict, List
 
 from src.utils.config_loader import settings
+from src.utils.sync_ignores import DEFAULT_CLAUDEIGNORE_PATTERNS
+
+
+def _validate_patterns(patterns: Any) -> List[str]:
+    if patterns is None:
+        return []
+    if not isinstance(patterns, list):
+        return []
+    cleaned: List[str] = []
+    for pattern in patterns:
+        if not isinstance(pattern, str):
+            continue
+        pattern = pattern.strip()
+        if pattern:
+            cleaned.append(pattern)
+    return cleaned
 
 
 class PromptTemplates:
@@ -32,11 +48,37 @@ class WorkspaceFilter:
     @classmethod
     def _load_rules(cls) -> Dict[str, Any]:
         base_key = "ai_collaboration.directory_scanning_protection"
-        patterns = settings.get("workspace.ignore_patterns.claudeignore")
-        if not patterns:
-            patterns = settings.get(f"{base_key}.exclude_globs", [])
-        if not isinstance(patterns, list):
-            patterns = []
+        workspace_patterns = settings.get("workspace.ignore_patterns", {})
+        patterns = None
+        explicit_override = False
+
+        if isinstance(workspace_patterns, dict) and "claudeignore" in workspace_patterns:
+            raw_claude_patterns = workspace_patterns["claudeignore"]
+            if isinstance(raw_claude_patterns, list):
+                patterns = _validate_patterns(raw_claude_patterns)
+                if patterns:
+                    explicit_override = True
+                else:
+                    patterns = None
+            else:
+                patterns = []
+                explicit_override = True
+
+        if patterns is None:
+            ai_patterns = settings.get(f"{base_key}.exclude_globs", None)
+            if ai_patterns is not None:
+                if isinstance(ai_patterns, list):
+                    patterns = _validate_patterns(ai_patterns)
+                    if patterns:
+                        explicit_override = True
+                    else:
+                        patterns = None
+                else:
+                    patterns = []
+                    explicit_override = True
+
+        if patterns is None or (not patterns and not explicit_override):
+            patterns = DEFAULT_CLAUDEIGNORE_PATTERNS.copy()
 
         rules = {
             "exclude_patterns": patterns,
@@ -47,7 +89,19 @@ class WorkspaceFilter:
     @classmethod
     def _is_excluded(cls, rel_path: pathlib.Path, patterns: List[str]) -> bool:
         path_str = str(rel_path.as_posix())
-        return any(fnmatch.fnmatch(path_str, pat) for pat in patterns)
+        for pat in patterns:
+            if pat.endswith("/"):
+                if path_str.startswith(pat):
+                    return True
+                continue
+            if pat.endswith("/**"):
+                prefix = pat[:-3]
+                if path_str == prefix or path_str.startswith(prefix + "/"):
+                    return True
+                continue
+            if fnmatch.fnmatch(path_str, pat):
+                return True
+        return False
 
     @classmethod
     def collect_files(cls) -> List[pathlib.Path]:
@@ -58,7 +112,7 @@ class WorkspaceFilter:
         selected: List[pathlib.Path] = []
         used_bytes = 0
 
-        for file_path in cls._repo_root.rglob("*"):
+        for file_path in sorted(cls._repo_root.rglob("*")):
             if file_path.is_dir():
                 continue
 
@@ -67,8 +121,10 @@ class WorkspaceFilter:
                 continue
 
             size = file_path.stat().st_size
+            if size > budget:
+                continue
             if used_bytes + size > budget:
-                break
+                continue
 
             selected.append(file_path)
             used_bytes += size
