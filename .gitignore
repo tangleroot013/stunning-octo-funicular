@@ -39,3 +39,6 @@ ship-report.json
 coverage.json
 audit.json
 type_check.json
+
+# one-off local setup/fix scripts -- never tracked
+/*.sh
