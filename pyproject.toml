@@ -19,7 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Operating System :: OS Independent",
 ]
-dependencies = []
+dependencies = ["pyyaml>=6.0"]
 
 [project.urls]
 Homepage = "https://github.com/tangleroot013/stunning-octo-funicular"
@@ -35,6 +35,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 minversion = "7.0"
 testpaths = ["tests"]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=85"
